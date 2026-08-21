@@ -47,6 +47,11 @@ IMG_SPECTRAL  = os.path.join(ASSETS_DIR, "wetland_ndwi_spectral.jpg")
 IMG_DRONE     = os.path.join(ASSETS_DIR, "multimodal_field_drone.jpg")
 IMG_ARCH      = os.path.join(ASSETS_DIR, "technical_approach_diagram.jpg")
 
+IMG_NODE1     = os.path.join(ASSETS_DIR, "node1_stac_satellite.jpg")
+IMG_NODE2     = os.path.join(ASSETS_DIR, "node2_band_math.jpg")
+IMG_NODE3     = os.path.join(ASSETS_DIR, "node3_diff_mask.jpg")
+IMG_NODE4     = os.path.join(ASSETS_DIR, "node4_gemini_ai.jpg")
+
 # Initialize 16:9 Widescreen Presentation
 prs = Presentation()
 prs.slide_width = Inches(13.333)
@@ -99,7 +104,7 @@ def add_pill_badge(slide, left, top, width, height, text, bg_color=OCEAN_CARD_HI
 
 def add_slide_header(slide, slide_num, category, title, subtitle=None):
     add_rect(slide, Inches(0.8), Inches(0.4), Inches(1.8), Pt(3), AQUA_BRIGHT)
-    add_pill_badge(slide, Inches(0.8), Inches(0.52), Inches(1.8), Inches(0.28), f"ORBIT {slide_num:02d} // {category.upper()}", bg_color=OCEAN_CARD, text_color=SOLAR_AMBER, font_size=8.5)
+    add_pill_badge(slide, Inches(0.8), Inches(0.52), Inches(2.2), Inches(0.28), f"ORBIT {slide_num:02d} // {category.upper()}", bg_color=OCEAN_CARD, text_color=SOLAR_AMBER, font_size=8.5)
     
     txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.82), Inches(11.7), Inches(0.65))
     tf = txBox.text_frame
@@ -141,21 +146,21 @@ def add_card(slide, left, top, width, height, title="", category_tag="", bg_colo
             if title:
                 p1 = tf.add_paragraph()
                 p1.text = title
-                p1.font.size = Pt(13)
+                p1.font.size = Pt(12)
                 p1.font.bold = True
                 p1.font.color.rgb = TEXT_GLACIAL
                 p1.font.name = FONT_TITLE
         elif title:
             p0 = tf.paragraphs[0]
             p0.text = title
-            p0.font.size = Pt(13)
+            p0.font.size = Pt(12)
             p0.font.bold = True
             p0.font.color.rgb = TEXT_GLACIAL
             p0.font.name = FONT_TITLE
             
     return card
 
-def add_bullet_list(slide, left, top, width, height, items, font_size=10.5, color=TEXT_FOAM, spacing=Pt(5)):
+def add_bullet_list(slide, left, top, width, height, items, font_size=10.0, color=TEXT_FOAM, spacing=Pt(4)):
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
@@ -216,10 +221,10 @@ def add_image_with_frame(slide, image_path, left, top, width, height, label=None
         frame.line.width = Pt(1.5)
         
         if label:
-            add_pill_badge(slide, left + Inches(0.15), top + Inches(0.15), Inches(len(label)*0.08 + 0.5), Inches(0.26), label, bg_color=OCEAN_ABYSS, text_color=AQUA_BRIGHT, font_size=7.5)
+            add_pill_badge(slide, left + Inches(0.12), top + Inches(0.12), Inches(len(label)*0.075 + 0.4), Inches(0.24), label, bg_color=OCEAN_ABYSS, text_color=AQUA_BRIGHT, font_size=7.0)
         return pic
     else:
-        card = add_card(slide, left, top, width, height, title="Image Visual Asset", category_tag=label or "GRAPHIC", border_color=border_color)
+        card = add_card(slide, left, top, width, height, title="Image Asset", category_tag=label or "GRAPHIC", border_color=border_color)
         return card
 
 def add_footer_telemetry(slide, text="AQUASENSE OBSERVATORY • SENTINEL-2 L2A STAC • NDWI (B03-B08)/(B03+B08) • 10m/px • GEMINI 3.7 FLASH • 0x8a92f02c"):
@@ -416,7 +421,7 @@ for idx, (title, tag, desc, col) in enumerate(mini_bento):
 add_footer_telemetry(slide3)
 
 # ==============================================================================
-# SLIDE 4: ORBITAL PIPELINE EXECUTION FLOW WITH NODES
+# SLIDE 4: ORBITAL PIPELINE NODES (WITH EMBEDDED IMAGES AT COLUMN BOTTOMS)
 # ==============================================================================
 slide4 = create_slide(prs)
 add_slide_header(slide4, 4, "Execution Telemetry", "Live Earth Observation Pipeline & Data Flow", "How raw multispectral electromagnetic reflections transform into quantified surface water metrics.")
@@ -427,50 +432,54 @@ pipeline_nodes = [
         "• Query Microsoft Planetary STAC",
         "• Filter Sentinel-2 L2A BOA",
         "• Sort by eo:cloud_cover <20%",
-        "• Fallback across 5 candidates",
+        "• Auto-retry across 5 scenes",
         "OUTPUT: ESA Scene Assets"
-    ], OCEAN_PANEL, AQUA_BRIGHT),
+    ], OCEAN_PANEL, AQUA_BRIGHT, IMG_NODE1, "STAC SATELLITE HUD"),
     ("NODE 02", "Spectral Band Mathematics", [
         "INPUT: B03 (560nm) & B08 (842nm)",
         "• Compute NDWI expression",
         "• (B03-B08)/(B03+B08)",
         "• Rescale [-1, 1] → [0, 255] byte",
-        "• Pre-cache in HTML5 canvas",
+        "• 256-color LUT pre-caching",
         "OUTPUT: 8-Bit Grayscale Grid"
-    ], OCEAN_PANEL, TEAL_BIO),
+    ], OCEAN_PANEL, TEAL_BIO, IMG_NODE2, "SPECTRAL REFLECTANCE"),
     ("NODE 03", "Quantification & Diff Mask", [
-        "INPUT: Cutoff Cutoff > C_thresh",
-        "• In-memory pixel counting",
+        "INPUT: Threshold Cutoff > C_thresh",
+        "• In-memory sub-pixel counting",
         "• Area = N_pixels × 0.0001 km²",
-        "• Tri-state differencing mask",
-        "• Annual STAC time-series sampling",
+        "• Tri-state differencing bitmask",
+        "• Annual STAC time-series audit",
         "OUTPUT: km² Stats & Diff Map"
-    ], OCEAN_PANEL, SOLAR_AMBER),
+    ], OCEAN_PANEL, SOLAR_AMBER, IMG_NODE3, "TRI-STATE DIFF MASK"),
     ("NODE 04", "Gemini Multimodal AI", [
         "INPUT: Spatial Area + Photos",
         "• Gemini 3.7: Deep synthesis",
         "• Google Search tool grounding",
         "• Google Maps landmark lookup",
-        "• Multimodal drone verification",
-        "OUTPUT: Policy Report & Audit JSON"
-    ], OCEAN_PANEL, CORAL_CRIMSON)
+        "• Drone vision verification",
+        "OUTPUT: Policy & Audit JSON"
+    ], OCEAN_PANEL, CORAL_CRIMSON, IMG_NODE4, "GEMINI SYNTHESIS HUD")
 ]
 
-for idx, (node, title, steps, bg_c, border_c) in enumerate(pipeline_nodes):
+for idx, (node, title, steps, bg_c, border_c, img_path, img_lbl) in enumerate(pipeline_nodes):
     left = Inches(0.8 + idx * 3.0)
-    add_card(slide4, left, Inches(1.8), Inches(2.8), Inches(4.9), title=title, category_tag=node, bg_color=OCEAN_CARD, border_color=border_c, border_width=1.5)
-    add_bullet_list(slide4, left + Inches(0.2), Inches(2.6), Inches(2.4), Inches(3.9), steps, font_size=10, spacing=Pt(6))
+    # Text card at top
+    add_card(slide4, left, Inches(1.75), Inches(2.8), Inches(3.2), title=title, category_tag=node, bg_color=OCEAN_CARD, border_color=border_c, border_width=1.5)
+    add_bullet_list(slide4, left + Inches(0.18), Inches(2.45), Inches(2.44), Inches(2.3), steps, font_size=8.8, spacing=Pt(2))
+    
+    # Embedded image at bottom of each column
+    add_image_with_frame(slide4, img_path, left, Inches(5.05), Inches(2.8), Inches(1.85), label=img_lbl, border_color=border_c)
 
 add_footer_telemetry(slide4)
 
 # ==============================================================================
-# SLIDE 5: TECHNICAL APPROACH & SYSTEM ARCHITECTURE (WITH FULL DIAGRAM)
+# SLIDE 5: HIGH-COMPLEXITY TECHNICAL ARCHITECTURE DIAGRAM
 # ==============================================================================
 slide5 = create_slide(prs)
-add_slide_header(slide5, 5, "Technical Approach", "Technical Approach & End-to-End System Architecture", "Modular system architecture connecting STAC ingestion, spectral raster processing, storage provenance, and Gemini multimodal AI.")
+add_slide_header(slide5, 5, "Technical Approach", "End-to-End Software System Architecture & Technical Approach", "Comprehensive system blueprint connecting STAC ingestion, raster bitmasking, storage provenance, AI reasoning, and containerized DevOps.")
 
-# Embed High-Resolution Technical Approach Diagram
-add_image_with_frame(slide5, IMG_ARCH, Inches(0.8), Inches(1.6), Inches(11.7), Inches(5.15), label="SYSTEM ARCHITECTURE // TECHNICAL APPROACH & DATA PIPELINE", border_color=OCEAN_BORDER_HI)
+# Embed High-Complexity, Icon-Rich Dark Technical Architecture Diagram
+add_image_with_frame(slide5, IMG_ARCH, Inches(0.8), Inches(1.6), Inches(11.7), Inches(5.15), label="SYSTEM ARCHITECTURE // COMPLETE TECHNICAL BLUEPRINT", border_color=OCEAN_BORDER_HI)
 
 add_footer_telemetry(slide5)
 
@@ -742,86 +751,105 @@ add_table_grid(slide10, Inches(7.0), Inches(3.9), Inches(5.3), Inches(2.6), tren
 add_footer_telemetry(slide10)
 
 # ==============================================================================
-# SLIDE 11: REAL-WORLD APPLICATIONS & GLOBAL STAKEHOLDERS
+# SLIDE 11: COMBINED GLOBAL IMPACT & STRATEGIC SCALING ROADMAP
 # ==============================================================================
 slide11 = create_slide(prs)
-add_slide_header(slide11, 11, "Global Impact", "Target Stakeholders & Market Applications", "Actionable satellite intelligence serving environmental governance, conservation, smart cities, and ESG markets.")
+add_slide_header(slide11, 11, "Strategic Impact & Roadmap", "Global Stakeholder Applications & Strategic Scaling Roadmap", "Transforming satellite observation into verifiable conservation policy, smart city resilience, and planetary hydro-intelligence.")
 
-stakeholder_grid = [
+# LEFT SECTION: 4 Stakeholder Applications (2x2 Grid)
+add_card(slide11, Inches(0.8), Inches(1.75), Inches(5.7), Inches(5.0), title="Target Stakeholders & Real-World Impact", category_tag="GLOBAL APPLICATION DOMAINS", bg_color=OCEAN_CARD, border_color=OCEAN_BORDER_HI)
+
+stakeholders_mini = [
     ("🏛️ GOVERNANCE & POLICY", "WETLAND AUTHORITIES", [
-        "• Ramsar Convention & National Biodiversity reporting.",
-        "• Automated detection of illegal landfilling & construction.",
-        "• Court-admissible satellite evidence for legal enforcement.",
-        "• Transparent verification of municipal conservation budgets."
+        "• Ramsar & Biodiversity compliance reporting.",
+        "• Automated alerts on illegal landfilling.",
+        "• Court-admissible proof (hash: 0x8a92f02c)."
     ], AQUA_BRIGHT),
     ("🌱 CONSERVATION NGOS", "ECOLOGISTS & ADVOCACY", [
-        "• Continuous monitoring of remote or inaccessible wetlands.",
-        "• Evidence-based data for conservation advocacy campaigns.",
-        "• Field photo ground-truthing portal for community rangers.",
-        "• Multi-year trend documentation to secure climate grants."
+        "• Continuous remote monitoring of basins.",
+        "• Field photo ground-truthing portal.",
+        "• Multi-year trend data for climate grants."
     ], TEAL_BIO),
-    ("🏙️ SMART CITIES & PLANNERS", "DISASTER MITIGATION", [
-        "• Pre-monsoon water holding capacity assessments.",
-        "• Preservation of critical urban flood buffer corridors.",
-        "• Resilience planning for expanding metropolitan zones.",
-        "• Integration with city emergency response dashboards."
+    ("🏙️ SMART CITIES & PLANNERS", "FLOOD ATTENUATION", [
+        "• Pre-monsoon water holding capacity checks.",
+        "• Critical urban flood buffer preservation.",
+        "• City emergency dashboard integration."
     ], SOLAR_AMBER),
-    ("💼 ESG & BLUE CARBON", "SUSTAINABILITY AUDITING", [
-        "• Independent satellite MRV (Measurement, Reporting & Verification).",
-        "• Auditable wetland carbon credit verification.",
-        "• Corporate water stewardship compliance reporting.",
-        "• Cryptographic system hashes preventing greenwashing."
+    ("💼 ESG & BLUE CARBON", "SUSTAINABILITY AUDIT", [
+        "• Independent satellite MRV verification.",
+        "• Auditable wetland carbon credit validation.",
+        "• Corporate water stewardship reporting."
     ], CORAL_CRIMSON)
 ]
 
-for idx, (title, tag, points, col) in enumerate(stakeholder_grid):
-    left = Inches(0.8 + idx * 3.0)
-    add_card(slide11, left, Inches(1.8), Inches(2.8), Inches(4.9), title=title, category_tag=tag, border_color=col)
-    add_bullet_list(slide11, left + Inches(0.2), Inches(2.65), Inches(2.4), Inches(3.9), points, font_size=9.5, spacing=Pt(6))
+for idx, (title, tag, pts, col) in enumerate(stakeholders_mini):
+    col_idx = idx % 2
+    row_idx = idx // 2
+    c_left = Inches(1.0 + col_idx * 2.7)
+    c_top  = Inches(2.45 + row_idx * 2.05)
+    
+    add_rect(slide11, c_left, c_top, Inches(2.55), Inches(1.95), OCEAN_DEEP, col, border_width=1)
+    
+    txBox = slide11.shapes.add_textbox(c_left + Inches(0.1), c_top + Inches(0.1), Inches(2.35), Inches(1.75))
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    tf.margin_left = tf.margin_top = tf.margin_right = tf.margin_bottom = 0
+    
+    p0 = tf.paragraphs[0]
+    p0.text = title
+    p0.font.size = Pt(8.5)
+    p0.font.bold = True
+    p0.font.color.rgb = col
+    p0.font.name = FONT_TITLE
+    
+    p1 = tf.add_paragraph()
+    p1.text = tag
+    p1.font.size = Pt(7.0)
+    p1.font.bold = True
+    p1.font.color.rgb = TEXT_SEABED
+    p1.font.name = FONT_MONO
+    p1.space_after = Pt(3)
+    
+    for pt in pts:
+        p_pt = tf.add_paragraph()
+        p_pt.text = pt
+        p_pt.font.size = Pt(8.0)
+        p_pt.font.color.rgb = TEXT_FOAM
+        p_pt.space_after = Pt(2)
+
+# RIGHT SECTION: 4 Strategic Scaling Roadmap Phases (Vertical Stack)
+add_card(slide11, Inches(6.8), Inches(1.75), Inches(5.7), Inches(5.0), title="Strategic Scaling Roadmap & Milestones", category_tag="PLANETARY DEPLOYMENT PHASES", bg_color=OCEAN_CARD, border_color=TEAL_BIO)
+
+roadmap_phases = [
+    ("PHASE 1: CURRENT PRODUCTION", "BENCHMARK DEPLOYMENT", "✔ STAC pipeline, sub-second NDWI canvas kernel, Gemini 4-mode AI, JSON audit provenance, and Pallikaranai audit.", TEAL_BIO),
+    ("PHASE 2: Q4 2025", "MULTI-SENSOR RADAR FUSION", "• Sentinel-1 SAR C-band radar (all-weather penetrating), MNDWI/AWEI indices, STAC webhook alerts, GeoJSON vector export.", AQUA_BRIGHT),
+    ("PHASE 3: Q1 2026", "ACTIVE LEARNING ML", "• Few-shot patch labeling UI, Prithvi-100M fine-tuning adapter, citizen science mobile photo portal, thermal water tracking.", SOLAR_AMBER),
+    ("PHASE 4: 2027 VISION", "PLANETARY HYDRO-NETWORK", "• Pan-India & Global Wetland Atlas, real-time flood surge forecasting, open public API for NGOs, automated Blue Carbon registry.", CORAL_CRIMSON)
+]
+
+for idx, (phase, tag, desc, col) in enumerate(roadmap_phases):
+    p_top = Inches(2.45 + idx * 1.02)
+    add_rect(slide11, Inches(7.0), p_top, Inches(5.3), Inches(0.92), OCEAN_DEEP, col, border_width=1)
+    
+    txBox = slide11.shapes.add_textbox(Inches(7.15), p_top + Inches(0.08), Inches(5.0), Inches(0.78))
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    tf.margin_left = tf.margin_top = tf.margin_right = tf.margin_bottom = 0
+    
+    p0 = tf.paragraphs[0]
+    p0.text = f"{phase}  //  {tag}"
+    p0.font.size = Pt(8.5)
+    p0.font.bold = True
+    p0.font.color.rgb = col
+    p0.font.name = FONT_MONO
+    
+    p1 = tf.add_paragraph()
+    p1.text = desc
+    p1.font.size = Pt(8.0)
+    p1.font.color.rgb = TEXT_FOAM
+    p1.space_before = Pt(2)
 
 add_footer_telemetry(slide11)
-
-# ==============================================================================
-# SLIDE 12: STRATEGIC ROADMAP & ORBITAL VISION
-# ==============================================================================
-slide12 = create_slide(prs)
-add_slide_header(slide12, 12, "Strategic Roadmap", "Product Roadmap & Planetary Scaling Vision", "From local wetland observatory to an autonomous global planetary hydro-intelligence network.")
-
-roadmap_milestones = [
-    ("PHASE 1: PRODUCTION", "CURRENT BENCHMARK", [
-        "✔ STAC Planetary Computer pipeline",
-        "✔ Sub-second NDWI canvas kernel",
-        "✔ 7 Scientific Color LUT palettes",
-        "✔ Gemini 4-mode AI synthesis suite",
-        "✔ JSON audit provenance exporter",
-        "✔ Pallikaranai Marshland validation"
-    ], TEAL_BIO),
-    ("PHASE 2: Q4 2025", "MULTI-SENSOR FUSION", [
-        "• Sentinel-1 SAR C-band radar integration (cloud-penetrating all-weather monitoring)",
-        "• Multi-index support: MNDWI, AWEI, NDVI",
-        "• Automated STAC webhook alerts on >10% loss",
-        "• Vector GeoJSON & SHP polygon download"
-    ], AQUA_BRIGHT),
-    ("PHASE 3: Q1 2026", "ACTIVE LEARNING ML", [
-        "• Interactive few-shot patch labeling UI",
-        "• Prithvi-100M active fine-tuning adapter",
-        "• Citizen science mobile photo portal",
-        "• Landsat-8/9 thermal water anomaly tracking"
-    ], SOLAR_AMBER),
-    ("PHASE 4: 2027 VISION", "PLANETARY HYDRO-NETWORK", [
-        "• Pan-India & Global Wetland Atlas",
-        "• Real-time flood surge forecasting",
-        "• Open public API for NGOs & agencies",
-        "• Automated Blue Carbon credit registry"
-    ], CORAL_CRIMSON)
-]
-
-for idx, (phase, tag, points, col) in enumerate(roadmap_milestones):
-    left = Inches(0.8 + idx * 3.0)
-    add_card(slide12, left, Inches(1.8), Inches(2.8), Inches(4.9), title=tag, category_tag=phase, border_color=col)
-    add_bullet_list(slide12, left + Inches(0.2), Inches(2.65), Inches(2.4), Inches(3.9), points, font_size=9.5, spacing=Pt(6))
-
-add_footer_telemetry(slide12)
 
 # ==============================================================================
 # SAVE PRESENTATION TO LOCAL WORKSPACE DIRECTORY
@@ -830,7 +858,7 @@ output_filename = "AquaSense_Pitch_Deck.pptx"
 output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), output_filename)
 try:
     prs.save(output_path)
-    print(f"[SUCCESS] AquaSense presentation with Technical Approach diagram generated successfully: {output_path}")
+    print(f"[SUCCESS] AquaSense presentation generated successfully: {output_path}")
 except PermissionError:
     alt_filename = "AquaSense_Pitch_Deck_v2.pptx"
     alt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), alt_filename)
