@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Custom scrollbar styling for high-density dashboards */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(20, 20, 20, 0.05);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(20, 20, 20, 0.25);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(20, 20, 20, 0.5);
+  }
+}
+
+html, body {
+  min-height: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}

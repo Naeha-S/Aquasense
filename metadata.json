@@ -1,0 +1,6 @@
+{
+  "name": "AquaSense EO Observation & Few-Shot Classifier",
+  "description": "Earth Observation analysis, NDWI temporal quantification, and FewShotClassifier embedding framework.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
