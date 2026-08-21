@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AquaSense Pitch Deck - Viewer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background:#141414; color:#E5E3DF; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .serif { font-family: 'Playfair Display', serif; }
+  .slide { min-height: 100vh; border-bottom: 1px solid #2a2a2a; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #333; }
+</style>
+</head>
+<body>
+<!-- Navigation -->
+<div class="fixed top-0 left-0 right-0 z-50 bg-[#141414]/95 backdrop-blur border-b border-[#2a2a2a] px-6 py-3 flex justify-between items-center">
+  <div class="flex items-center gap-3">
+    <div class="w-7 h-7 bg-[#E5E3DF] text-black flex items-center justify-center font-bold mono text-xs">Ω</div>
+    <span class="mono text-xs tracking-widest">AQUASENSE • PITCH DECK • 11 SLIDES</span>
+  </div>
+  <div class="flex gap-2">
+    <a href="/AquaSense_Pitch_Deck.pptx" download class="bg-[#E5E3DF] text-black px-4 py-1.5 mono text-xs font-bold hover:bg-white transition">⬇ DOWNLOAD PPTX</a>
+    <button onclick="document.getElementById('slide-1').scrollIntoView({behavior:'smooth'})" class="border border-[#333] px-3 py-1.5 mono text-xs hover:bg-white/10">TOP</button>
+  </div>
+</div>
+
+<div class="pt-[52px]">
+<!-- Slide 1 -->
+<div id="slide-1" class="slide bg-[#141414] flex">
+  <div class="w-[55%] p-12 pt-20 flex flex-col justify-center">
+    <div class="w-20 h-1 bg-[#E5E3DF] mb-8"></div>
+    <div class="mono text-[11px] tracking-[0.3em] text-[#E5E3DF]/60 mb-4">Ω AQUASENSE</div>
+    <h1 class="serif italic text-[72px] leading-[0.9] text-[#E5E3DF]">AquaSense</h1>
+    <h2 class="text-[26px] text-[#E5E3DF]/90 mt-4 font-light">EO Observation & Few-Shot Classifier</h2>
+    <p class="mono text-[13px] text-[#888] mt-8 leading-relaxed max-w-[520px]">Real-time wetland hydrology intelligence from Sentinel-2<br>NDWI temporal quantification • Gemini ecological reasoning • Planetary Computer STAC</p>
+    <div class="mt-12 flex gap-3">
+      <div class="bg-[#1E1E1E] border border-[#333] px-4 py-2 mono text-[10px]">STAC • EO-HYDRO • NDWI (B03-B08)/(B03+B08) • 10m/px</div>
+    </div>
+  </div>
+  <div class="w-[45%] bg-[#1A1A1A] border-l border-[#2a2a2a] p-10 pt-20 flex flex-col justify-center">
+    <div class="bg-[#141414] border border-[#2a2a2a] p-8">
+      <div class="mono text-[10px] text-amber-400 tracking-widest mb-3">MISSION</div>
+      <div class="text-[22px] leading-tight font-semibold">Monitoring Earth's most threatened ecosystems with satellite intelligence</div>
+      <div class="mt-8 space-y-4 mono text-[11px] text-[#666]">
+        <div>STAC • EO-HYDRO • NDWI<br>(B03-B08)/(B03+B08)<br>10m/px Resolution</div>
+        <div class="text-blue-400">PALLIKARANAI MARSH • CHENNAI<br>Baseline 2019 → Target 2025<br>Cloud &lt;20% • Threshold &gt;0.20</div>
+      </div>
+      <div class="mt-10 pt-6 border-t border-[#2a2a2a] mono text-[9px] text-[#444]">Sentinel-2 Spectral Ingestion • Microsoft Planetary Computer • Gemini 3.7 Flash • 0x8a92f02c</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 2 -->
+<div id="slide-2" class="slide bg-[#E5E3DF] text-black flex flex-col">
+  <div class="bg-black text-[#E5E3DF] px-12 py-6 flex justify-between items-center">
+    <div><div class="mono text-[10px] text-amber-400 tracking-widest">02 / PROBLEM</div><div class="serif italic text-[32px]">The Wetland Crisis</div></div>
+    <div class="mono text-[10px] text-white/40">WORLD'S FASTEST DISAPPEARING ECOSYSTEM</div>
+  </div>
+  <div class="flex-1 p-12 grid grid-cols-3 gap-8">
+    <div class="bg-white border border-black p-8">
+      <div class="mono text-[9px] bg-blue-600 text-white inline-block px-2 py-1 mb-4">WORLDWIDE</div>
+      <div class="text-[36px] font-bold leading-none">35% LOST</div>
+      <p class="mt-4 text-[14px] text-[#555] leading-relaxed">Of natural wetlands lost since 1970. Fastest disappearing ecosystem on Earth. Ramsar estimates 3x faster than forests.</p>
+    </div>
+    <div class="bg-white border border-black p-8">
+      <div class="mono text-[9px] bg-black text-white inline-block px-2 py-1 mb-4">MONITORING GAP</div>
+      <div class="text-[28px] font-bold leading-none">Data Blindness</div>
+      <p class="mt-4 text-[14px] text-[#555]">No real-time, high-res monitoring for local conservation bodies. Manual surveys are slow, expensive, and outdated on arrival.</p>
+    </div>
+    <div class="bg-white border border-black p-8">
+      <div class="mono text-[9px] bg-red-600 text-white inline-block px-2 py-1 mb-4">NO EARLY WARNING</div>
+      <div class="text-[28px] font-bold leading-none">Climate Risk</div>
+      <p class="mt-4 text-[14px] text-[#555]">Urban encroachment, precipitation anomalies, and pollution go undetected until irreversible. Chennai lost 34% in 6 years.</p>
+    </div>
+  </div>
+  <div class="px-12 pb-10"><div class="text-center font-bold text-[14px]">We need an autonomous, satellite-native observatory that turns raw spectral bands into actionable ecological intelligence.</div></div>
+</div>
+
+<!-- Slide 3 -->
+<div id="slide-3" class="slide bg-[#0E0E0E] flex">
+  <div class="w-[55%] p-12">
+    <div class="mono text-[10px] text-cyan-400 tracking-widest mb-2">03 / SOLUTION</div>
+    <h2 class="serif italic text-[40px] text-[#E5E3DF]">Introducing AquaSense</h2>
+    <p class="text-[#999] mt-3 text-[14px] max-w-[520px]">An end-to-end Earth Observation pipeline that ingests Sentinel-2, computes NDWI, and delivers hydrological change with AI ecological synthesis.</p>
+    <div class="mt-8 space-y-3 mono text-[12px] text-[#E5E3DF]">
+      <div class="flex gap-3"><span>🛰️</span><span><b>STAC Auto-Discovery</b> — Queries Planetary Computer for best low-cloud scenes with retry-on-failure</span></div>
+      <div class="flex gap-3"><span>🌊</span><span><b>NDWI Intelligence</b> — (B03-B08)/(B03+B08) with dynamic thresholding & 5 color ramps</span></div>
+      <div class="flex gap-3"><span>📊</span><span><b>Pixel Quantification</b> — Real-time km², % change, longitudinal trend 2019-2025</span></div>
+      <div class="flex gap-3"><span>🧠</span><span><b>Gemini Ecological AI</b> — 4 modes: Deep Reasoning, Search, Maps, Fast Summary</span></div>
+      <div class="flex gap-3"><span>🗺️</span><span><b>Interactive Observatory</b> — Drag BBOX, split-slider, diff mask (gain/loss)</span></div>
+      <div class="flex gap-3"><span>📸</span><span><b>Field Verification</b> — Multimodal understanding for ground-truthing</span></div>
+    </div>
+  </div>
+  <div class="w-[45%] bg-[#161616] border-l border-[#222] p-8">
+    <div class="space-y-4">
+      <div class="flex gap-4 items-start bg-[#1A1A1A] border border-[#2a2a2a] p-4"><div class="w-8 h-8 bg-black text-amber-400 flex items-center justify-center mono text-xs font-bold">01</div><div><div class="mono text-[11px] font-bold">STAC INGEST</div><div class="mono text-[10px] text-[#666] mt-1">Sentinel-2 L2A<br>Planetary Computer<br>Cloud &lt;20%</div></div></div>
+      <div class="flex gap-4 items-start bg-[#1A1A1A] border border-[#2a2a2a] p-4"><div class="w-8 h-8 bg-black text-amber-400 flex items-center justify-center mono text-xs font-bold">02</div><div><div class="mono text-[11px] font-bold">NDWI COMPUTE</div><div class="mono text-[10px] text-[#666] mt-1">(B03-B08)/(B03+B08)<br>Colorized LUT<br>Threshold &gt;0.20</div></div></div>
+      <div class="flex gap-4 items-start bg-[#1A1A1A] border border-[#2a2a2a] p-4"><div class="w-8 h-8 bg-black text-amber-400 flex items-center justify-center mono text-xs font-bold">03</div><div><div class="mono text-[11px] font-bold">DIFF & TREND</div><div class="mono text-[10px] text-[#666] mt-1">Water pixels ×0.0001<br>km² change<br>Annual snapshots</div></div></div>
+      <div class="flex gap-4 items-start bg-[#1A1A1A] border border-[#2a2a2a] p-4"><div class="w-8 h-8 bg-black text-amber-400 flex items-center justify-center mono text-xs font-bold">04</div><div><div class="mono text-[11px] font-bold">AI SYNTHESIS</div><div class="mono text-[10px] text-[#666] mt-1">Gemini 3.7 Flash<br>Ecology + Search<br>+ Maps Grounding</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4 -->
+<div id="slide-4" class="slide bg-[#E5E3DF] text-black">
+  <div class="bg-black text-[#E5E3DF] px-12 py-5"><div class="mono text-[10px] text-cyan-400">04 / ARCHITECTURE</div><div class="serif italic text-[28px]">System Architecture & Tech Stack</div></div>
+  <div class="p-10 grid grid-cols-5 gap-4">
+    <div class="bg-white border border-black p-4"><div class="mono text-[9px] font-bold text-blue-600">FRONTEND</div><div class="mono text-[11px] mt-3 leading-relaxed">React 19 + Vite<br>Tailwind 4.1<br>Map Editor, Split Slider<br>Recharts, Turf.js</div></div>
+    <div class="bg-white border border-black p-4"><div class="mono text-[9px] font-bold text-blue-600">BACKEND</div><div class="mono text-[11px] mt-3 leading-relaxed">Express + TSX<br>STAC API Client<br>Raster Pipeline<br>Provenance Export</div></div>
+    <div class="bg-white border border-black p-4"><div class="mono text-[9px] font-bold text-blue-600">GEOSPATIAL</div><div class="mono text-[11px] mt-3 leading-relaxed">Sentinel-2 L2A<br>NDWI: B03 & B08<br>Planetary Computer<br>Cloud Filter + BBOX</div></div>
+    <div class="bg-white border border-black p-4"><div class="mono text-[9px] font-bold text-blue-600">ML / AI</div><div class="mono text-[11px] mt-3 leading-relaxed">Clay Encoder<br>Prithvi Foundation<br>Few-Shot Classifier<br>KNN / Logistic</div></div>
+    <div class="bg-white border border-black p-4"><div class="mono text-[9px] font-bold text-blue-600">GEN AI</div><div class="mono text-[11px] mt-3 leading-relaxed">Gemini 3.7 Flash<br>Deep Reasoning<br>Search Grounding<br>Maps + Multimodal</div></div>
+  </div>
+  <div class="px-10"><div class="bg-black text-white mono text-[11px] p-3 text-center">DATA FLOW: User BBOX → STAC Search (5 candidates) → Verify Rasters → NDWI Thresholding → Color LUT → Diff Mask → Trend → Gemini Analysis → Export</div></div>
+</div>
+
+<!-- Slide 6 -->
+<div id="slide-6" class="slide bg-[#E5E3DF] text-black flex">
+  <div class="w-[38%] bg-black text-[#E5E3DF] p-10">
+    <div class="mono text-[10px] text-cyan-400">06 / AI + ML</div>
+    <div class="serif italic text-[32px] mt-2 leading-tight">Few-Shot Intelligence & Gemini Reasoning</div>
+    <p class="mono text-[11px] text-[#888] mt-4">Beyond NDWI: We embed spectral patches and classify with minimal labels — then explain it with grounded LLMs.</p>
+    <div class="mt-8 mono text-[11px] space-y-2 text-[#ccc]">
+      <div>ENCODERS: Clay + Prithvi (NASA IBM)</div>
+      <div>CLASSIFIERS: KNN, Logistic, Few-Shot</div>
+      <div>PATCH EXTRACTION: Sliding window</div>
+      <div>FINE-TUNING: PyTorch adapters</div>
+    </div>
+  </div>
+  <div class="w-[62%] p-8">
+    <div class="text-[20px] font-bold mb-6">Four-Mode Ecological Intelligence</div>
+    <div class="space-y-3">
+      <div class="bg-white border border-black p-4 flex justify-between"><div><div class="mono text-[11px] font-bold">🧠 DEEP THINKING</div><div class="mono text-[9px] text-blue-600">gemini-3.7-flash</div></div><div class="text-[11px] text-[#555] max-w-[300px]">Hydrological trajectory, driving factors, ecosystem services, conservation interventions.</div></div>
+      <div class="bg-white border border-black p-4 flex justify-between"><div><div class="mono text-[11px] font-bold">🔍 SEARCH GROUNDED</div><div class="mono text-[9px] text-blue-600">gemini-3.5-flash + GoogleSearch</div></div><div class="text-[11px] text-[#555] max-w-[300px]">Live factual grounding: recent reports, government actions, climate events with citations.</div></div>
+      <div class="bg-white border border-black p-4 flex justify-between"><div><div class="mono text-[11px] font-bold">🗺️ MAPS GROUNDED</div><div class="mono text-[9px] text-blue-600">gemini-3.5-flash + GoogleMaps</div></div><div class="text-[11px] text-[#555] max-w-[300px]">Geographic orientation: landmarks, protected zones, urban centers, inlets/outlets.</div></div>
+      <div class="bg-white border border-black p-4 flex justify-between"><div><div class="mono text-[11px] font-bold">⚡ FAST SUMMARY</div><div class="mono text-[9px] text-blue-600">gemini-3.1-flash-lite</div></div><div class="text-[11px] text-[#555] max-w-[300px]">3-4 bullet low-latency summary for dashboards. Optimized for speed.</div></div>
+      <div class="bg-black text-white border border-black p-4 flex justify-between"><div><div class="mono text-[11px] font-bold">📸 FIELD INSPECTION</div><div class="mono text-[9px] text-amber-400">Multimodal Vision</div></div><div class="text-[11px] text-[#aaa] max-w-[300px]">Upload drone/field photo → water clarity, algae, vegetation, encroachment + few-shot scores.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7 demo -->
+<div id="slide-7" class="slide bg-[#161616] p-10">
+  <div class="mono text-[10px] text-amber-400">07 / LIVE DEMO</div>
+  <div class="serif italic text-[32px] text-[#E5E3DF]">Observatory Interface Walkthrough</div>
+  <div class="mt-8 grid grid-cols-12 gap-4 h-[420px]">
+    <div class="col-span-3 bg-[#D7D4CF] border border-black p-4 text-black"><div class="mono text-[9px] font-bold">PIPELINE TELEMETRY</div><div class="mono text-[9px] mt-3">1. Planetary Computer STAC ✓<br>2. NDWI Raster & LUT ✓<br>3. Hydrological Differencing ✓</div><div class="mt-6 bg-[#222] h-32 flex items-center justify-center mono text-[9px] text-[#E5E3DF] text-center">[Interactive BBOX Map]<br>Drag anchors</div></div>
+    <div class="col-span-6 bg-black border border-[#333] p-3"><div class="mono text-[8px] text-[#E5E3DF]">TRUE COLOR SWIPE | NDWI SWIPE (VIRIDIS) | DIFF MASK</div><div class="mt-3 bg-[#1A1A1A] h-[300px] flex items-center justify-center mono text-[10px] text-[#555]">[Satellite Split Slider]<br>2019 ← drag → 2025</div><div class="mt-3 mono text-[8px] text-cyan-400">NDWI Scale: -1.0 [Water ← → Land] +1.0 Threshold >0.20</div></div>
+    <div class="col-span-3 bg-[#DFDCD7] border border-black p-4 text-black"><div class="mono text-[9px] font-bold">HYDROLOGICAL QUANTIFICATION</div><div class="mono text-[9px] mt-3">2019 WATER: 4.82 km²<br>2025 WATER: 3.15 km²<br>CHANGE: -1.67 km²<br>RELATIVE: -34.6%</div><div class="mt-4 bg-white border border-black p-3"><div class="mono text-[8px] font-bold">✨ GEMINI INSIGHTS</div><div class="text-[9px] mt-2 text-[#555]">Hydrological Trajectory...<br>Driving Factors...<br>Ecosystem Services...</div></div></div>
+  </div>
+</div>
+
+<!-- Slide 11 closing -->
+<div id="slide-11" class="slide bg-black flex">
+  <div class="w-[55%] p-16 flex flex-col justify-center">
+    <div class="w-20 h-1 bg-[#E5E3DF] mb-8"></div>
+    <div class="serif italic text-[56px] text-[#E5E3DF]">AquaSense</div>
+    <div class="text-[20px] text-[#888] mt-2">Protecting wetlands with satellite intelligence.</div>
+    <div class="mt-10 mono text-[13px] text-[#ccc] leading-relaxed">Every pixel tells a story.<br>Every km² matters.<br><br>Built with:<br>• Microsoft Planetary Computer<br>• Sentinel-2 L2A • NDWI Science<br>• Gemini Ecological Reasoning<br>• Few-Shot Foundation Models</div>
+  </div>
+  <div class="w-[45%] bg-[#1A1A1A] border-l border-[#222] p-12 flex flex-col justify-center">
+    <div class="bg-[#141414] border border-[#2a2a2a] p-8">
+      <div class="mono text-[11px] text-amber-400 font-bold">GET STARTED</div>
+      <div class="mono text-[12px] mt-4 text-[#E5E3DF] leading-relaxed">Live Demo: aquasense.eo<br>GitHub: Naeha-S/Aquasense<br><br>Try Pallikaranai Marsh<br>Chennai • 2019 → 2025<br>BBOX: 80.20,12.91,80.23,12.95</div>
+      <div class="mt-8 pt-6 border-t border-[#222] mono text-[11px] text-[#666]">Contact:<br>[Your Name]<br>[Email] • [LinkedIn]<br><br>"From spectral bands to ecological insights — autonomous, explainable, actionable."</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#222] border border-[#333] rounded-full px-2 py-1 flex gap-1 z-50">
+  <button onclick="scrollToSlide(1)" class="w-8 h-8 rounded-full bg-[#E5E3DF] text-black mono text-[10px] font-bold">1</button>
+  <button onclick="scrollToSlide(2)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">2</button>
+  <button onclick="scrollToSlide(3)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">3</button>
+  <button onclick="scrollToSlide(4)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">4</button>
+  <button onclick="scrollToSlide(6)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">6</button>
+  <button onclick="scrollToSlide(7)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">7</button>
+  <button onclick="scrollToSlide(11)" class="w-8 h-8 rounded-full hover:bg-white/10 mono text-[10px]">11</button>
+</div>
+
+<script>
+function scrollToSlide(n){
+  document.getElementById('slide-'+n).scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
