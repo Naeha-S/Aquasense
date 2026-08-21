@@ -106,14 +106,14 @@ export function ImageSplitSlider({
         if (playDirectionRef.current === 'forward') {
           next += speed * delta;
           if (next >= 95) {
-            playDirectionRef.current = 'backward';
             next = 95;
+            playDirectionRef.current = 'backward';
           }
         } else {
           next -= speed * delta;
           if (next <= 5) {
-            playDirectionRef.current = 'forward';
             next = 5;
+            playDirectionRef.current = 'forward';
           }
         }
         return next;
@@ -131,135 +131,117 @@ export function ImageSplitSlider({
     };
   }, [isPlaying]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') {
-      setSliderPosition((prev) => Math.max(0, prev - 5));
-    } else if (e.key === 'ArrowRight') {
-      setSliderPosition((prev) => Math.min(100, prev + 5));
-    } else if (e.key === 'Home') {
-      setSliderPosition(0);
-    } else if (e.key === 'End') {
-      setSliderPosition(100);
-    }
-  };
-
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center select-none">
-      {/* Slider Container */}
+    <div className="relative w-full flex flex-col font-mono text-[11px] select-none bg-[#030712] rounded-sm overflow-hidden border border-[#1D3D73]">
+      {/* Visual Canvas Container */}
       <div
         ref={containerRef}
-        id="image-split-slider"
-        role="slider"
-        aria-valuenow={Math.round(sliderPosition)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Satellite Imagery Temporal Comparison Slider"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className="w-full h-full relative overflow-hidden cursor-ew-resize focus:outline-none focus:ring-1 focus:ring-white/40 group"
+        className="relative w-full aspect-4/3 sm:aspect-16/10 bg-[#071326] cursor-ew-resize overflow-hidden"
       >
-        {/* Layer B (Background / Full Year B) */}
-        <div className="absolute inset-0 w-full h-full bg-[#0a0a0a]">
+        {/* Layer B (Background / Right Side) */}
+        <div className="absolute inset-0 w-full h-full">
           <img
             src={imageB}
             alt={labelB}
-            crossOrigin="anonymous"
             className="w-full h-full object-cover pointer-events-none"
-            loading="eager"
           />
-          {/* Label for Year B */}
-          <div className="absolute top-2 right-2 bg-black/85 text-white px-2.5 py-1 text-[10px] font-mono border border-white/20 backdrop-blur-sm z-10 pointer-events-none flex flex-col items-end">
-            <span className="font-bold text-amber-300">{labelB}</span>
-            {dateB && <span className="opacity-75 text-[9px]">{dateB}</span>}
+          {/* Label B Badge */}
+          <div className="absolute bottom-3 right-3 bg-[#071326]/90 border border-[#0284C7] text-[#F0FDFA] px-2.5 py-1 text-[10px] shadow-lg backdrop-blur-md rounded-xs">
+            <div className="font-bold uppercase tracking-wider text-[#38BDF8]">{labelB}</div>
+            {dateB && <div className="text-[8.5px] text-[#CADDAE]">{dateB}</div>}
+            {idB && <div className="text-[7px] text-[#738CAD] max-w-[140px] truncate">{idB}</div>}
           </div>
         </div>
 
-        {/* Layer A (Clipped Overlay / Year A) */}
+        {/* Layer A (Foreground / Left Side with Dynamic Clip-Path) */}
         <div
-          className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none will-change-[clip-path]"
-          style={{
-            clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`,
-          }}
+          className="absolute inset-0 w-full h-full overflow-hidden"
+          style={{ clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)` }}
         >
           <img
             src={imageA}
             alt={labelA}
-            crossOrigin="anonymous"
             className="w-full h-full object-cover pointer-events-none"
-            loading="eager"
           />
-          {/* Label for Year A */}
-          <div className="absolute top-2 left-2 bg-black/85 text-white px-2.5 py-1 text-[10px] font-mono border border-white/20 backdrop-blur-sm z-10 pointer-events-none flex flex-col items-start">
-            <span className="font-bold text-cyan-300">{labelA}</span>
-            {dateA && <span className="opacity-75 text-[9px]">{dateA}</span>}
+          {/* Label A Badge */}
+          <div className="absolute bottom-3 left-3 bg-[#071326]/90 border border-[#22D3EE] text-[#F0FDFA] px-2.5 py-1 text-[10px] shadow-lg backdrop-blur-md rounded-xs">
+            <div className="font-bold uppercase tracking-wider text-[#22D3EE]">{labelA}</div>
+            {dateA && <div className="text-[8.5px] text-[#CADDAE]">{dateA}</div>}
+            {idA && <div className="text-[7px] text-[#738CAD] max-w-[140px] truncate">{idA}</div>}
           </div>
         </div>
 
-        {/* Divider Line & Grab Handle */}
+        {/* The Split Divider Line & Draggable Handle */}
         <div
-          className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_8px_rgba(0,0,0,0.8)] pointer-events-none z-20 will-change-transform"
-          style={{
-            left: `${sliderPosition}%`,
-            transform: 'translateX(-50%)',
-          }}
+          className="absolute top-0 bottom-0 w-[2px] bg-[#22D3EE] pointer-events-none z-20 shadow-[0_0_10px_#22D3EE]"
+          style={{ left: `${sliderPosition}%` }}
         >
-          {/* Center Grab Button / Thumb */}
-          <div
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#141414] border-2 border-white text-white flex items-center justify-center shadow-lg transition-transform ${
-              isDragging ? 'scale-110 bg-black' : 'group-hover:scale-105'
-            }`}
-          >
-            <ChevronsLeftRight className="w-4 h-4" />
+          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#071326] border-2 border-[#22D3EE] flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.6)]">
+            <ChevronsLeftRight className="w-4 h-4 text-[#22D3EE]" />
           </div>
         </div>
 
-        {/* Touch/Mouse hint on hover */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/75 text-white/90 text-[9px] font-mono px-2 py-0.5 border border-white/10 pointer-events-none backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity">
-          Drag to swipe • {Math.round(sliderPosition)}%
+        {/* Top HUD Telemetry Indicator */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#071326]/85 border border-[#1D3D73] px-3 py-0.5 text-[8.5px] text-[#38BDF8] backdrop-blur-sm rounded-xs pointer-events-none">
+          SWIPE COMPARISON: {sliderPosition.toFixed(0)}%
         </div>
       </div>
 
-      {/* Preset and Playback Bar */}
-      <div className="w-full bg-[#141414] border-t border-white/10 px-3 py-1.5 flex items-center justify-between text-white font-mono text-[9px] flex-shrink-0">
-        <div className="flex items-center gap-1.5">
+      {/* Control Bar Below Image */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#071326] border-t border-[#1D3D73] text-[10px]">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsPlaying(!isPlaying)}
-            title={isPlaying ? 'Pause Auto Sweep' : 'Auto Sweep Animation'}
-            className="px-2 py-0.5 bg-white/10 hover:bg-white/20 border border-white/20 flex items-center gap-1 text-[9px]"
+            onClick={() => setIsPlaying((prev) => !prev)}
+            className={`px-2.5 py-1 border flex items-center gap-1.5 font-bold transition-all rounded-xs ${
+              isPlaying
+                ? 'bg-[#22D3EE] text-[#030712] border-[#22D3EE] shadow-[0_0_8px_rgba(34,211,238,0.5)]'
+                : 'bg-[#0C1E3D] text-[#22D3EE] border-[#1D3D73] hover:border-[#22D3EE]'
+            }`}
           >
-            {isPlaying ? <Pause className="w-2.5 h-2.5 text-amber-400" /> : <Play className="w-2.5 h-2.5 text-green-400" />}
-            {isPlaying ? 'PAUSE' : 'AUTO SWEEP'}
+            {isPlaying ? (
+              <>
+                <Pause className="w-3 h-3" /> Auto-Swipe Running
+              </>
+            ) : (
+              <>
+                <Play className="w-3 h-3" /> Auto-Swipe
+              </>
+            )}
           </button>
+
           <button
             type="button"
-            onClick={() => { setIsPlaying(false); setSliderPosition(50); }}
-            title="Reset to 50% split"
-            className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 border border-white/20 flex items-center gap-1 text-[9px]"
+            onClick={() => {
+              setIsPlaying(false);
+              setSliderPosition(50);
+            }}
+            className="px-2 py-1 bg-[#0C1E3D] text-[#CADDAE] border border-[#1D3D73] hover:border-[#22D3EE] flex items-center gap-1 transition-all rounded-xs"
+            title="Reset to 50/50"
           >
-            <RotateCcw className="w-2.5 h-2.5" /> 50%
+            <RotateCcw className="w-3 h-3" /> 50/50
           </button>
         </div>
 
-        {/* Snap Buttons */}
-        <div className="flex items-center gap-1">
-          <span className="opacity-50 text-[8px] mr-1 hidden sm:inline">SNAP:</span>
-          {[0, 25, 50, 75, 100].map((val) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => { setIsPlaying(false); setSliderPosition(val); }}
-              className={`px-1.5 py-0.5 border text-[8px] transition-colors ${
-                Math.round(sliderPosition) === val
-                  ? 'bg-white text-black font-bold border-white'
-                  : 'bg-white/5 border-white/15 hover:bg-white/15'
-              }`}
-            >
-              {val}%
-            </button>
-          ))}
+        {/* Position Slider Input */}
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-[#738CAD] uppercase font-bold">Split Ratio:</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={sliderPosition}
+            onChange={(e) => {
+              setIsPlaying(false);
+              setSliderPosition(parseFloat(e.target.value));
+            }}
+            className="w-24 sm:w-36 accent-[#22D3EE] h-1.5 bg-[#0C1E3D] rounded-xs cursor-pointer"
+          />
+          <span className="text-[10px] font-bold text-[#22D3EE] w-7 text-right">
+            {sliderPosition.toFixed(0)}%
+          </span>
         </div>
       </div>
     </div>

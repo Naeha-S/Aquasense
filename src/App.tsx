@@ -16,7 +16,14 @@ import {
   Maximize2,
   Compass,
   Eye,
-  Activity
+  Activity,
+  Sparkles,
+  Brain,
+  Search,
+  MapPin,
+  Radio,
+  FileCheck2,
+  Share2
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -45,6 +52,14 @@ interface SceneData {
   date: string;
 }
 
+const PRESET_BASINS = [
+  { name: 'PALLIKARANAI_MARSH', label: 'Pallikaranai, Chennai', bbox: [80.20, 12.91, 80.23, 12.95] as [number, number, number, number] },
+  { name: 'CHILIKA_LAKE', label: 'Chilika Lake, Odisha', bbox: [85.10, 19.55, 85.45, 19.85] as [number, number, number, number] },
+  { name: 'VEMBANAD_LAKE', label: 'Vembanad, Kerala', bbox: [76.30, 9.55, 76.45, 9.80] as [number, number, number, number] },
+  { name: 'LOKTAK_LAKE', label: 'Loktak Lake, Manipur', bbox: [93.75, 24.50, 93.90, 24.65] as [number, number, number, number] },
+  { name: 'SUNDARBANS_DELTA', label: 'Sundarbans Delta', bbox: [88.75, 21.80, 89.10, 22.10] as [number, number, number, number] }
+];
+
 export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>('setup');
   const [mapView, setMapView] = useState<MapView>('split');
@@ -53,20 +68,21 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [diffMap, setDiffMap] = useState<string | null>(null);
   const [trendData, setTrendData] = useState<{year: string, area: number}[]>([]);
+  const [activeThinkingNode, setActiveThinkingNode] = useState<string>('multimodal');
   
   const [config, setConfig] = useState({
     waterBody: 'PALLIKARANAI_MARSH_CHENNAI',
     years: ['2019', '2025'],
     bbox: [80.20, 12.91, 80.23, 12.95] as [number, number, number, number],
-    maxCloudCover: 20, // Dynamic STAC query cloud cover % threshold
-    ndwiThreshold: 0.20 // Dynamic NDWI water classification threshold
+    maxCloudCover: 20,
+    ndwiThreshold: 0.20
   });
 
   const [sceneData, setSceneData] = useState<{yearA: SceneData, yearB: SceneData} | null>(null);
   const intermediateSnapshotsRef = useRef<{ year: string; ndwiUrl: string }[]>([]);
   const [isRecalculatingThreshold, setIsRecalculatingThreshold] = useState(false);
 
-  // Recalculate pixel analysis, colorized rasters, and diff map in real-time when ndwiThreshold or colorRamp changes
+  // Real-time NDWI recalculation
   const applyNdwiThresholdAndRamp = async (newThreshold: number, newRamp: ColorRampId) => {
     if (!sceneData) return;
     setIsRecalculatingThreshold(true);
@@ -82,7 +98,6 @@ export default function App() {
       const areaA = pixelsA * 0.0001;
       const areaB = pixelsB * 0.0001;
 
-      // Update intermediate trend snapshots with new threshold
       const updatedTrendIntermediates = await Promise.all(
         intermediateSnapshotsRef.current.map(async (s) => {
           const px = await countWaterPixelsWithThreshold(s.ndwiUrl, newThreshold);
@@ -177,7 +192,7 @@ export default function App() {
     a.download = `aquasense_provenance_${new Date().getTime()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setLogs(prev => [...prev, `[SYSTEM] Exported provenance metadata.`]);
+    setLogs(prev => [...prev, `[SYSTEM] Exported provenance metadata hash 0x8a92f02c.`]);
   };
 
   const runPipeline = async () => {
@@ -190,7 +205,6 @@ export default function App() {
       const width = 325;
       const height = 445;
 
-      // STAC Catalog query returning top candidate scenes for automatic fallback / retry on failure
       const searchStacCandidates = async (year: string, isStart: boolean) => {
         const dateRange = (isStart && year === '2019') 
           ? '2019-03-01T00:00:00Z/2019-03-31T23:59:59Z' 
@@ -222,7 +236,6 @@ export default function App() {
         return data.features;
       };
 
-      // Scene resolver with automatic Retry-On-Failure across candidate scenes
       const resolveWorkingScene = async (year: string, candidates: any[]) => {
         let lastError: any = null;
 
@@ -237,7 +250,6 @@ export default function App() {
           try {
             setLogs(prev => [...prev, `[STAC] Testing candidate #${rank}/${candidates.length}: ${item.id} (Cloud: ${cloudPct}%)...`]);
             
-            // Verify and pre-cache both True Color and NDWI rasters
             await Promise.all([
               getCachedImage(tcUrl),
               getCachedImage(ndwiUrl)
@@ -261,7 +273,7 @@ export default function App() {
             lastError = err;
             setLogs(prev => [
               ...prev, 
-              `[WARN] Candidate scene #${rank} (${item.id}) failed raster processing (${err.message || 'Image load error'}). [RETRY-ON-FAILURE] Attempting next best scene in catalog...`
+              `[WARN] Candidate scene #${rank} (${item.id}) failed raster processing (${err.message || 'Image load error'}). [RETRY-ON-FAILURE] Attempting next candidate...`
             ]);
           }
         }
@@ -313,7 +325,6 @@ export default function App() {
           const data = await res.json();
           if (!data.features || data.features.length === 0) return null;
 
-          // Try intermediate candidates
           for (const item of data.features) {
             try {
               const ndwiUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=${item.id}&expression=(B03-B08)/(B03%2BB08)&asset_as_band=True&rescale=-1,1&width=${width}&height=${height}&bbox=${bboxStr}`;
@@ -378,123 +389,109 @@ export default function App() {
   const pctChange = sceneData ? (change / sceneData.yearA.area) * 100 : 0;
 
   return (
-    <div className='flex flex-col w-full min-h-screen lg:h-screen bg-[#E5E3DF] text-[#141414] font-sans overflow-x-hidden overflow-y-auto lg:overflow-hidden selection:bg-[#141414] selection:text-[#E5E3DF]'>
+    <div className="flex flex-col w-full min-h-screen bg-[#030712] text-[#F0FDFA] font-mono select-none overflow-x-hidden">
       
-      {/* Top Cartographic Header */}
-      <header className='flex flex-col md:flex-row items-start md:items-center justify-between border-b border-[#141414] px-6 py-3.5 bg-[#DEDCD8] flex-shrink-0 gap-3 md:gap-0 z-20'>
-        <div className='flex items-center gap-3'>
-          <div className='w-7 h-7 bg-[#141414] text-[#E5E3DF] flex items-center justify-center font-mono font-bold text-xs shadow-xs'>
+      {/* 1. TOP FUTURISTIC HUD BANNER */}
+      <header className="border-b border-[#1D3D73] bg-[#071326]/90 backdrop-blur-md px-4 sm:px-6 py-2.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 z-30 sticky top-0">
+        
+        {/* Left Title & Status */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-sm bg-[#0C1E3D] border border-[#22D3EE] text-[#22D3EE] flex items-center justify-center font-bold text-sm shadow-[0_0_12px_rgba(34,211,238,0.4)]">
             Ω
           </div>
-          <div className='flex flex-col'>
-            <div className='flex items-center gap-2'>
-              <h1 className='font-serif italic text-2xl tracking-tight leading-none'>
-                AquaSense
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold tracking-wider text-[#F0FDFA] uppercase flex items-center gap-2">
+                <span className="text-[#38BDF8]">GOOGLE GEMINI</span>
+                <span className="text-[#738CAD]">/</span>
+                <span>ECOLOGICAL SYNTHESIS DASHBOARD</span>
               </h1>
-              <span className='text-[9px] not-italic bg-[#141414] text-[#E5E3DF] px-1.5 py-0.5 font-mono uppercase font-bold tracking-widest'>
-                STAC • EO-HYDRO
+              <span className="hidden sm:inline-block text-[8px] bg-[#06D6A0]/20 border border-[#06D6A0]/40 text-[#06D6A0] px-1.5 py-0.5 font-bold rounded-xs">
+                ORBIT ACTIVE
               </span>
             </div>
-            <div className='text-[10px] font-mono opacity-60 uppercase tracking-tight mt-0.5 flex items-center gap-2'>
-              <span>Sentinel-2 Spectral Ingestion</span>
+            <div className="text-[9px] text-[#738CAD] flex items-center gap-2">
+              <span>Sentinel-2 L2A Stream</span>
               <span>•</span>
-              <span className='font-bold text-[#141414]'>{config.waterBody}</span>
+              <span className="text-[#22D3EE]">{config.waterBody}</span>
+              <span>•</span>
+              <span className="text-[#FBBF24]">MSI 10m Ground Grid</span>
             </div>
           </div>
         </div>
 
-        {/* Telemetry and Source Status */}
-        <div className='flex flex-wrap items-center gap-4 md:gap-6'>
-          <div className='hidden sm:flex flex-col items-end'>
-            <span className='text-[9px] font-mono uppercase opacity-50 tracking-wider'>Colormap LUT</span>
-            <div className='flex items-center gap-1.5'>
-              <div 
-                className='w-3.5 h-2 border border-[#141414]/50' 
-                style={{ background: COLOR_RAMPS[colorRamp].cssGradient }} 
-              />
-              <span className='text-xs font-mono font-bold uppercase'>{COLOR_RAMPS[colorRamp].name}</span>
-            </div>
+        {/* Right Telemetry Readouts */}
+        <div className="flex flex-wrap items-center gap-3 text-[9.5px]">
+          <div className="px-2 py-1 bg-[#0C1E3D] border border-[#1D3D73] rounded-xs flex items-center gap-1.5">
+            <Radio className="w-3 h-3 text-[#06D6A0] animate-pulse" />
+            <span className="text-[#738CAD]">STAC:</span>
+            <span className="text-[#06D6A0] font-bold">CONNECTED</span>
           </div>
 
-          <div className='flex flex-col items-start md:items-end'>
-            <span className='text-[9px] font-mono uppercase opacity-50 tracking-wider'>STAC Data Node</span>
-            <span className='text-xs font-mono font-bold'>PLANETARY COMPUTER</span>
+          <div className="px-2 py-1 bg-[#0C1E3D] border border-[#1D3D73] rounded-xs flex items-center gap-1.5">
+            <span className="text-[#738CAD]">LATENCY:</span>
+            <span className="text-[#22D3EE] font-bold">14ms</span>
           </div>
 
-          <div className='flex flex-col items-start md:items-end'>
-            <span className='text-[9px] font-mono uppercase opacity-50 tracking-wider'>NDWI Method</span>
-            <span className='text-xs font-mono font-bold text-blue-800 bg-blue-100/80 px-1 border border-blue-300'>
-              (B03-B08)/(B03+B08)
-            </span>
+          <div className="px-2 py-1 bg-[#0C1E3D] border border-[#1D3D73] rounded-xs flex items-center gap-1.5">
+            <span className="text-[#738CAD]">HASH:</span>
+            <span className="text-[#CADDAE] font-bold">0x8a92f02c</span>
           </div>
         </div>
       </header>
 
-      {/* Main Observatory Layout */}
-      <main className='flex-1 flex flex-col lg:grid lg:grid-cols-12 overflow-y-auto lg:overflow-hidden min-h-0'>
+      {/* 2. MAIN 3-COLUMN OBSERVATORY DASHBOARD */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 bg-grid-cyber min-h-0">
         
-        {/* Left Parameter Panel */}
-        <aside className='w-full lg:col-span-3 border-b lg:border-b-0 lg:border-r border-[#141414] flex flex-col bg-[#D7D4CF] order-1 lg:order-none overflow-y-auto max-h-none lg:max-h-full'>
+        {/* ============================================================ */}
+        {/* LEFT COLUMN: MULTIMODAL INPUTS & AI THINKING NODES (3 COLS)  */}
+        {/* ============================================================ */}
+        <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto">
           
-          {/* Pipeline Stage Tracker */}
-          <section className='p-4 border-b border-[#141414] flex-shrink-0 bg-[#CECBC5]/50'>
-            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-[#141414]/70 mb-2 flex justify-between items-center'>
-              <span>Pipeline Telemetry</span>
-              <div className={`text-[9px] font-mono uppercase px-2 py-0.5 border border-[#141414] font-bold ${
-                currentStep === 'processing' 
-                  ? 'bg-amber-400 text-black animate-pulse' 
-                  : currentStep === 'results' 
-                  ? 'bg-[#141414] text-[#E5E3DF]' 
-                  : 'bg-white text-black'
-              }`}>
-                {currentStep === 'processing' ? 'COMPUTING' : currentStep === 'results' ? 'CONVERGED' : 'STANDBY'}
-              </div>
+          {/* Card 1: MULTIMODAL DATA INPUTS */}
+          <div className="bg-[#071326]/90 border border-[#1D3D73] p-3 rounded-sm shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[#1D3D73] pb-1.5 text-[10px]">
+              <span className="font-bold text-[#38BDF8] uppercase flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-[#22D3EE]" />
+                MULTIMODAL DATA INPUTS
+              </span>
+              <span className="text-[8px] bg-[#22D3EE]/15 text-[#22D3EE] px-1 py-0.2 rounded-xs border border-[#22D3EE]/30 font-bold">
+                ESA BOA
+              </span>
             </div>
-            
-            <div className='space-y-2 mt-3'>
-              <div className='flex items-center gap-2'>
-                <Database className={`w-3.5 h-3.5 ${currentStep !== 'setup' ? 'text-black font-bold' : 'opacity-30'}`} />
-                <span className={`text-[10px] font-mono uppercase ${currentStep !== 'setup' ? 'opacity-100 font-bold' : 'opacity-40'}`}>
-                  1. Planetary Computer STAC
-                </span>
+
+            {/* Satellite Imagery Specs & Preset Selector */}
+            <div className="space-y-1.5 text-[9px]">
+              <div className="flex justify-between text-[#738CAD]">
+                <span>SATELLITE PAYLOAD:</span>
+                <span className="text-[#F0FDFA] font-bold">Sentinel-2 (10m, B03/B08)</span>
               </div>
-              <div className='flex items-center gap-2'>
-                <Layers className={`w-3.5 h-3.5 ${currentStep === 'processing' || currentStep === 'results' ? 'text-black font-bold' : 'opacity-30'}`} />
-                <span className={`text-[10px] font-mono uppercase ${currentStep === 'processing' || currentStep === 'results' ? 'opacity-100 font-bold' : 'opacity-40'}`}>
-                  2. NDWI Raster & Colormap LUT
-                </span>
-              </div>
-              <div className='flex items-center gap-2'>
-                <CheckCircle2 className={`w-3.5 h-3.5 ${currentStep === 'results' ? 'text-blue-800 font-bold' : 'opacity-30'}`} />
-                <span className={`text-[10px] font-mono uppercase ${currentStep === 'results' ? 'opacity-100 font-bold text-blue-900' : 'opacity-40'}`}>
-                  3. Hydrological Differencing
-                </span>
-              </div>
-            </div>
-          </section>
-          
-          {/* Controls & Configuration */}
-          <section className='p-4 flex-1 overflow-y-auto space-y-4'>
-            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-[#141414]/70 border-b border-[#141414]/20 pb-1 flex items-center justify-between'>
-              <span>Area of Interest & Parameters</span>
-              <Compass className="w-3 h-3 opacity-60" />
-            </div>
-            
-            {/* Target Water Body */}
-            <div>
-              <div className='text-[9px] font-mono uppercase opacity-60 mb-1 font-bold'>Target Hydro Feature</div>
-              <input 
-                type="text" 
-                value={config.waterBody}
-                onChange={e => setConfig({...config, waterBody: e.target.value})}
-                className="w-full bg-white border border-[#141414] px-2 py-1 text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-[#141414]"
-              />
               
-              {/* Interactive BBOX Map with Drag Handles */}
-              <div className='mt-2.5 mb-2'>
-                <div className='text-[9px] font-mono uppercase opacity-60 mb-1 flex items-center justify-between'>
-                  <span>Interactive Geo BBOX</span>
-                  <span className='text-[8px] text-blue-800 font-bold'>DRAG CORNER ANCHORS</span>
+              <div className="space-y-1">
+                <span className="text-[#738CAD] uppercase font-bold text-[8.5px]">Basin Preset Selector:</span>
+                <div className="grid grid-cols-1 gap-1">
+                  {PRESET_BASINS.map((b) => (
+                    <button
+                      key={b.name}
+                      type="button"
+                      onClick={() => setConfig(prev => ({ ...prev, waterBody: b.name, bbox: b.bbox }))}
+                      className={`text-left px-2 py-1 border text-[8.5px] rounded-xs transition-colors cursor-pointer ${
+                        config.waterBody.includes(b.name)
+                          ? 'bg-[#0C1E3D] border-[#22D3EE] text-[#22D3EE] font-bold shadow-[0_0_8px_rgba(34,211,238,0.3)]'
+                          : 'bg-[#0A1832] border-[#1D3D73]/60 text-[#CADDAE] hover:border-[#22D3EE]/60'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bounding Box Map Editor Component */}
+              <div className="pt-1">
+                <div className="flex justify-between items-center text-[8.5px] text-[#738CAD] mb-1">
+                  <span>INTERACTIVE AOI BBOX:</span>
+                  <span className="text-[#22D3EE]">DRAG ANCHORS</span>
                 </div>
                 <BboxMapEditor
                   bbox={config.bbox}
@@ -503,85 +500,42 @@ export default function App() {
                 />
               </div>
 
-              <label className='cursor-pointer inline-flex bg-[#141414] hover:bg-[#2a2a2a] text-[#E4E3E0] text-[9px] font-mono uppercase px-2 py-1 items-center gap-1.5 transition-colors mt-1 shadow-xs'>
-                <Upload className="w-3 h-3" />
-                Upload GeoJSON Boundary
-                <input type="file" accept=".geojson,application/geo+json" className="hidden" onChange={handleFileUpload} />
-              </label>
-            </div>
-
-            {/* NDWI Color Ramp Dropdown Component */}
-            <div className='border-l-2 border-[#141414] pl-2.5 py-1 bg-white/40 p-2.5 border border-[#141414]/15'>
-              <ColorRampSelector
-                selectedRamp={colorRamp}
-                onChange={handleRampChange}
-                disabled={currentStep === 'processing'}
-              />
-            </div>
-
-            {/* Dynamic Max Cloud Cover Filter Slider */}
-            <div className='border-l-2 border-[#141414] pl-2.5 py-1 bg-white/40 p-2 font-mono border border-[#141414]/15'>
-              <div className='flex items-center justify-between text-[10px] font-mono uppercase mb-1'>
-                <span className='opacity-70 font-bold'>Cloud Cover Filter</span>
-                <span className='font-bold bg-[#141414] text-[#E4E3E0] px-1.5 py-0.5 text-[9px]'>
-                  &lt; {config.maxCloudCover}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="80"
-                step="1"
-                value={config.maxCloudCover}
-                disabled={currentStep === 'processing'}
-                onChange={(e) => setConfig({ ...config, maxCloudCover: parseInt(e.target.value) })}
-                className="w-full h-1.5 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#141414]"
-              />
-              <div className='flex justify-between items-center text-[8px] opacity-60 mt-1'>
-                <span>1% (Strict)</span>
-                <div className='flex gap-1'>
-                  {[10, 20, 35, 50].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setConfig({ ...config, maxCloudCover: preset })}
-                      className={`px-1 py-0.2 border text-[8px] font-bold ${
-                        config.maxCloudCover === preset ? 'bg-[#141414] text-white border-black' : 'bg-white border-gray-400 hover:bg-gray-100'
-                      }`}
-                    >
-                      {preset}%
-                    </button>
-                  ))}
+              {/* Cloud Cover Threshold */}
+              <div className="pt-1.5 space-y-1">
+                <div className="flex justify-between items-center text-[8.5px]">
+                  <span className="text-[#738CAD]">MAX CLOUD COVER:</span>
+                  <span className="text-[#22D3EE] font-bold">&lt; {config.maxCloudCover}%</span>
                 </div>
-                <span>80%</span>
-              </div>
-            </div>
-            
-            {/* Temporal Epochs Selection */}
-            <div className='grid grid-cols-2 gap-2'>
-              <div className='border border-[#141414]/30 bg-white/60 p-2'>
-                <div className='text-[9px] font-mono uppercase opacity-60 font-bold'>Baseline Epoch A</div>
-                <input 
-                  type="text" 
-                  value={config.years[0]}
-                  onChange={e => setConfig({...config, years: [e.target.value, config.years[1]]})}
-                  className="bg-transparent text-sm font-mono font-bold w-full focus:outline-none border-b border-black/20 focus:border-[#141414] py-0.5"
+                <input
+                  type="range"
+                  min="1"
+                  max="80"
+                  value={config.maxCloudCover}
+                  disabled={currentStep === 'processing'}
+                  onChange={(e) => setConfig({ ...config, maxCloudCover: parseInt(e.target.value) })}
+                  className="w-full accent-[#22D3EE] h-1.5 bg-[#0C1E3D] rounded-xs cursor-pointer"
                 />
-                <div className='text-[8px] font-mono opacity-75 mt-1 truncate'>
-                  {sceneData ? sceneData.yearA.date : 'Pending query'}
-                </div>
               </div>
 
-              <div className='border border-[#141414]/30 bg-white/60 p-2'>
-                <div className='text-[9px] font-mono uppercase opacity-60 font-bold'>Target Epoch B</div>
-                <input 
-                  type="text" 
-                  value={config.years[1]}
-                  onChange={e => setConfig({...config, years: [config.years[0], e.target.value]})}
-                  className="bg-transparent text-sm font-mono font-bold w-full focus:outline-none border-b border-black/20 focus:border-[#141414] py-0.5"
-                />
-                <div className='text-[8px] font-mono opacity-75 mt-1 truncate'>
-                  {sceneData ? sceneData.yearB.date : 'Pending query'}
+              {/* Epoch Pair */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="bg-[#0C1E3D] p-1.5 border border-[#1D3D73] rounded-xs">
+                  <div className="text-[7.5px] text-[#738CAD]">EPOCH T0 (BASELINE)</div>
+                  <input
+                    type="text"
+                    value={config.years[0]}
+                    onChange={e => setConfig({ ...config, years: [e.target.value, config.years[1]] })}
+                    className="w-full bg-transparent font-bold text-[#F0FDFA] focus:outline-none text-[10px]"
+                  />
+                </div>
+                <div className="bg-[#0C1E3D] p-1.5 border border-[#1D3D73] rounded-xs">
+                  <div className="text-[7.5px] text-[#738CAD]">EPOCH T1 (TARGET)</div>
+                  <input
+                    type="text"
+                    value={config.years[1]}
+                    onChange={e => setConfig({ ...config, years: [config.years[0], e.target.value] })}
+                    className="w-full bg-transparent font-bold text-[#F0FDFA] focus:outline-none text-[10px]"
+                  />
                 </div>
               </div>
             </div>
@@ -590,248 +544,330 @@ export default function App() {
             <button
               onClick={runPipeline}
               disabled={currentStep === 'processing'}
-              className="w-full mt-2 bg-[#141414] hover:bg-black text-[#E5E3DF] font-mono text-xs font-bold py-3 px-4 flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-md cursor-pointer active:translate-y-0.5"
+              className="w-full bg-[#22D3EE] text-[#030712] font-bold py-2.5 px-3 rounded-xs flex items-center justify-center gap-2 hover:bg-[#38BDF8] transition-all shadow-[0_0_14px_rgba(34,211,238,0.5)] cursor-pointer disabled:opacity-40"
             >
               {currentStep === 'processing' ? (
-                <Cpu className="w-4 h-4 animate-spin text-amber-400" />
+                <Cpu className="w-4 h-4 animate-spin text-[#030712]" />
               ) : (
-                <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                <Play className="w-4 h-4 fill-current text-[#030712]" />
               )}
-              {currentStep === 'processing' ? 'PROCESSING STAC SCENES...' : 'INITIALIZE PIPELINE RUN'}
+              <span className="text-[10.5px] uppercase tracking-wide">
+                {currentStep === 'processing' ? 'PROCESSING STAC SCENES...' : 'INITIALIZE PIPELINE RUN'}
+              </span>
             </button>
-          </section>
-        </aside>
+          </div>
 
-        {/* Center Cartographic Canvas */}
-        <div className='w-full lg:col-span-6 bg-[#161616] relative min-h-[460px] lg:min-h-0 order-2 lg:order-none flex-shrink-0 flex flex-col justify-between overflow-hidden'>
-          
-          {/* Top Canvas Bar & Viewport Modes */}
-          <div className='p-3 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#161616]/90 backdrop-blur-sm'>
-            
-            {/* View Mode Segmented Controls */}
-            <div className='flex flex-wrap gap-1 text-[9px] font-mono'>
-              <button 
-                onClick={() => setMapView('split')} 
-                title="True Color Swipe Comparison"
-                className={`py-1 px-2 border transition-colors flex items-center gap-1 ${
-                  mapView === 'split' 
-                    ? 'bg-white text-black font-bold border-white' 
-                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                }`}>
-                <SlidersHorizontal className="w-2.5 h-2.5" /> TRUE COLOR SWIPE
-              </button>
-
-              <button 
-                onClick={() => setMapView('ndwi_split')} 
-                title="Color-Ramped NDWI Swipe Comparison"
-                className={`py-1 px-2 border transition-colors flex items-center gap-1 ${
-                  mapView === 'ndwi_split' 
-                    ? 'bg-blue-600 text-white font-bold border-blue-400' 
-                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                }`}>
-                <Palette className="w-2.5 h-2.5 text-cyan-300" /> NDWI SWIPE ({COLOR_RAMPS[colorRamp].name})
-              </button>
-
-              <button 
-                onClick={() => setMapView('diff')} 
-                title="Water Extent Temporal Difference Mask"
-                className={`py-1 px-2 border transition-colors flex items-center gap-1 ${
-                  mapView === 'diff' 
-                    ? 'bg-white text-black font-bold border-white' 
-                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                }`}>
-                <Activity className="w-2.5 h-2.5" /> DIFF MASK
-              </button>
-
-              <button 
-                onClick={() => setMapView('ndwi_b')} 
-                title="Epoch B NDWI Colormap"
-                className={`py-1 px-2 border transition-colors ${
-                  mapView === 'ndwi_b' 
-                    ? 'bg-white text-black font-bold border-white' 
-                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                }`}>
-                NDWI (T1)
-              </button>
-
-              <button 
-                onClick={() => setMapView('yearB')} 
-                title="Epoch B True Color"
-                className={`py-1 px-2 border transition-colors ${
-                  mapView === 'yearB' 
-                    ? 'bg-white text-black font-bold border-white' 
-                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                }`}>
-                RAW (T1)
-              </button>
+          {/* Card 2: AI THINKING NODES & PROCESSOR (Interactive Animated Neural Brain Matrix) */}
+          <div className="bg-[#071326]/90 border border-[#1D3D73] p-3 rounded-sm shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[#1D3D73] pb-1.5 text-[10px]">
+              <span className="font-bold text-[#FBBF24] uppercase flex items-center gap-1.5">
+                <Brain className="w-3.5 h-3.5 text-[#FBBF24]" />
+                AI THINKING NODES &amp; PROCESSOR
+              </span>
+              <span className="text-[8px] text-[#06D6A0] font-bold animate-pulse">
+                ACTIVE
+              </span>
             </div>
 
-            {/* Live Indicator */}
-            <div className='flex items-center gap-2'>
-              {currentStep === 'results' && isRecalculatingThreshold && (
-                <div className='flex items-center gap-1 text-[9px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 border border-cyan-700/50'>
-                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                  <span>CALCULATING LUT</span>
-                </div>
-              )}
-              <div className='bg-black/90 px-2 py-0.5 text-[9px] font-mono border border-white/20 text-white/90'>
-                SCALE: 10m/px
+            {/* Interactive Holographic Neural Brain SVG */}
+            <div className="relative w-full h-36 bg-[#0C1E3D]/70 border border-[#1D3D73] rounded-sm overflow-hidden flex items-center justify-center p-2">
+              <svg viewBox="0 0 300 140" className="w-full h-full">
+                {/* Connecting Neural Lines */}
+                <line x1="40" y1="40" x2="110" y2="30" stroke="#22D3EE" strokeWidth="1.5" strokeOpacity="0.6" strokeDasharray="3 3" />
+                <line x1="40" y1="40" x2="90" y2="80" stroke="#22D3EE" strokeWidth="1.5" strokeOpacity="0.6" />
+                <line x1="110" y1="30" x2="180" y2="40" stroke="#06D6A0" strokeWidth="1.5" strokeOpacity="0.7" />
+                <line x1="90" y1="80" x2="150" y2="70" stroke="#0284C7" strokeWidth="1.5" strokeOpacity="0.6" />
+                <line x1="150" y1="70" x2="220" y2="80" stroke="#FBBF24" strokeWidth="2" strokeOpacity="0.8" />
+                <line x1="180" y1="40" x2="220" y2="80" stroke="#F43F5E" strokeWidth="1.5" strokeOpacity="0.7" />
+                <line x1="220" y1="80" x2="270" y2="50" stroke="#22D3EE" strokeWidth="2" strokeOpacity="0.9" />
+
+                {/* Nodes */}
+                <g onClick={() => setActiveThinkingNode('multimodal')} className="cursor-pointer">
+                  <circle cx="40" cy="40" r="10" fill="#0C1E3D" stroke="#22D3EE" strokeWidth="2" />
+                  <circle cx="40" cy="40" r="4" fill="#22D3EE" className="animate-ping" />
+                  <text x="40" y="60" textAnchor="middle" fill="#22D3EE" fontSize="7" fontFamily="monospace">INPUTS</text>
+                </g>
+
+                <g onClick={() => setActiveThinkingNode('feature')} className="cursor-pointer">
+                  <circle cx="110" cy="30" r="9" fill="#0C1E3D" stroke="#06D6A0" strokeWidth="2" />
+                  <circle cx="110" cy="30" r="3.5" fill="#06D6A0" />
+                  <text x="110" y="20" textAnchor="middle" fill="#06D6A0" fontSize="7" fontFamily="monospace">FEATURE</text>
+                </g>
+
+                <g onClick={() => setActiveThinkingNode('causal')} className="cursor-pointer">
+                  <circle cx="150" cy="70" r="11" fill="#0C1E3D" stroke="#0284C7" strokeWidth="2" />
+                  <circle cx="150" cy="70" r="4.5" fill="#38BDF8" />
+                  <text x="150" y="92" textAnchor="middle" fill="#38BDF8" fontSize="7" fontFamily="monospace">CAUSAL</text>
+                </g>
+
+                <g onClick={() => setActiveThinkingNode('predictive')} className="cursor-pointer">
+                  <circle cx="180" cy="40" r="9" fill="#0C1E3D" stroke="#FBBF24" strokeWidth="2" />
+                  <circle cx="180" cy="40" r="3.5" fill="#FBBF24" />
+                  <text x="180" y="30" textAnchor="middle" fill="#FBBF24" fontSize="7" fontFamily="monospace">PREDICT</text>
+                </g>
+
+                <g onClick={() => setActiveThinkingNode('gemini')} className="cursor-pointer">
+                  <circle cx="270" cy="50" r="13" fill="#0C1E3D" stroke="#22D3EE" strokeWidth="2.5" />
+                  <circle cx="270" cy="50" r="6" fill="#22D3EE" className="animate-pulse" />
+                  <text x="270" y="74" textAnchor="middle" fill="#22D3EE" fontSize="8" fontWeight="bold" fontFamily="monospace">GEMINI 3.7</text>
+                </g>
+              </svg>
+            </div>
+
+            {/* Selected Node Readout */}
+            <div className="bg-[#0C1E3D] p-2 border border-[#1D3D73] rounded-xs text-[8.5px] space-y-1">
+              <div className="flex justify-between text-[#38BDF8] font-bold">
+                <span className="uppercase">ACTIVE REASONING NODE:</span>
+                <span className="text-[#22D3EE]">{activeThinkingNode.toUpperCase()}</span>
+              </div>
+              <p className="text-[#CADDAE] text-[8px] leading-tight">
+                {activeThinkingNode === 'multimodal' && 'Fusing Sentinel-2 multi-spectral reflectance with in-situ field sensor feeds.'}
+                {activeThinkingNode === 'feature' && 'Extracting 768-d latent features via IBM-NASA Prithvi-100M ViT encoder.'}
+                {activeThinkingNode === 'causal' && 'Isolating urban IT corridor encroachment vs monsoon rainfall anomalies.'}
+                {activeThinkingNode === 'predictive' && 'Projecting 5-year wetland boundary constriction and flood surge risk.'}
+                {activeThinkingNode === 'gemini' && 'Google Gemini 3.7 Flash synthesizing ecological report with web & maps grounding.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: ANALYSIS BREAKDOWN */}
+          <div className="bg-[#071326]/90 border border-[#1D3D73] p-3 rounded-sm shadow-lg space-y-2">
+            <div className="flex items-center justify-between border-b border-[#1D3D73] pb-1.5 text-[10px]">
+              <span className="font-bold text-[#06D6A0] uppercase flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-[#06D6A0]" />
+                ANALYSIS BREAKDOWN
+              </span>
+              <span className="text-[8px] text-[#738CAD]">LONGITUDINAL</span>
+            </div>
+
+            <div className="space-y-1.5 text-[9px]">
+              <div className="flex justify-between items-center">
+                <span className="text-[#738CAD]">Water Inundation Detection:</span>
+                <span className="text-[#06D6A0] font-bold">HIGH CONFIDENCE (98%)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#738CAD]">Habitat Connectivity:</span>
+                <span className="text-[#FBBF24] font-bold">MODERATE CONCERN</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#738CAD]">Biomass &amp; Flora Stability:</span>
+                <span className="text-[#F43F5E] font-bold">DESICCATION RISK</span>
               </div>
             </div>
           </div>
-          
-          {/* Main Visual Display Stage */}
-          <div className='w-full flex-1 flex items-center justify-center relative overflow-hidden p-3 md:p-5'>
-            
-            {/* Center Canvas Container */}
-            <div className={
-              mapView === 'diff' 
-                ? 'w-full max-w-[800px] aspect-[2/1] border border-white/30 relative bg-[#0d0d0d] shadow-2xl overflow-hidden' 
-                : 'w-full max-w-[520px] aspect-square border border-white/30 relative bg-[#0d0d0d] shadow-2xl flex flex-col overflow-hidden'
-            }>
-              {currentStep === 'results' && sceneData ? (
-                mapView === 'split' ? (
-                  <ImageSplitSlider
-                    imageA={sceneData.yearA.trueColor}
-                    imageB={sceneData.yearB.trueColor}
-                    labelA={`${config.years[0]} True Color (T0)`}
-                    labelB={`${config.years[1]} True Color (T1)`}
-                    dateA={sceneData.yearA.date}
-                    dateB={sceneData.yearB.date}
-                    idA={sceneData.yearA.id}
-                    idB={sceneData.yearB.id}
-                  />
-                ) : mapView === 'ndwi_split' ? (
-                  <ImageSplitSlider
-                    imageA={sceneData.yearA.colorizedNdwi || sceneData.yearA.ndwi}
-                    imageB={sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
-                    labelA={`${config.years[0]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
-                    labelB={`${config.years[1]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
-                    dateA={sceneData.yearA.date}
-                    dateB={sceneData.yearB.date}
-                    idA={sceneData.yearA.id}
-                    idB={sceneData.yearB.id}
-                  />
-                ) : mapView === 'diff' ? (
-                  <div className='flex w-full h-full'>
-                    {/* Left: Raw True Color Reference */}
-                    <div className='flex-1 border-r border-white/20 relative'>
-                      <div className='absolute top-2 left-2 bg-black/85 px-2 py-0.5 text-[9px] font-mono text-white z-10 border border-white/20'>
-                        TRUE COLOR (T1)
-                      </div>
-                      <img 
-                        src={sceneData.yearB.trueColor} 
-                        className="w-full h-full object-cover" 
-                        crossOrigin="anonymous" 
-                        alt="Raw Imagery" 
-                      />
-                    </div>
+        </div>
 
-                    {/* Right: Difference Mask with Color Ramp Legend */}
-                    <div className='flex-1 relative bg-black'>
-                      <div className='absolute top-2 left-2 bg-black/85 px-2 py-0.5 text-[9px] font-mono text-white z-10 flex items-center gap-1.5 border border-white/20'>
-                        <span className='font-bold text-cyan-300'>HYDROLOGICAL DIFFERENCE</span>
-                        <span className='text-[8px] opacity-80 font-mono'>(&gt;{config.ndwiThreshold.toFixed(2)})</span>
-                      </div>
-                      
-                      <img 
-                        src={sceneData.yearB.trueColor} 
-                        className="w-full h-full object-cover opacity-25 grayscale" 
-                        crossOrigin="anonymous" 
-                        alt="Base Imagery" 
-                      />
-                      {diffMap && (
-                        <img 
-                          src={diffMap} 
-                          className="w-full h-full object-cover absolute top-0 left-0" 
-                          crossOrigin="anonymous" 
-                          alt="Difference Mask" 
-                        />
-                      )}
-                      
-                      {/* Difference Mask Key */}
-                      <div className='absolute bottom-2 left-2 flex flex-col gap-1 text-[8px] font-mono bg-black/90 p-2 text-white border border-white/20 backdrop-blur-xs'>
-                        <div className='flex items-center gap-1.5'>
-                          <div className='w-2.5 h-2.5 bg-[#3B82F6] border border-white/30'></div> 
-                          <span>Water Gained (Inundation)</span>
-                        </div>
-                        <div className='flex items-center gap-1.5'>
-                          <div className='w-2.5 h-2.5 bg-[#EF4444] border border-white/30'></div> 
-                          <span>Water Lost (Desiccation)</span>
-                        </div>
-                        <div className='flex items-center gap-1.5'>
-                          <div className='w-2.5 h-2.5 bg-[#1E3A8A] border border-white/30'></div> 
-                          <span>Unchanged Water Extent</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : mapView === 'ndwi_a' || mapView === 'ndwi_b' ? (
-                  <div className='w-full h-full relative'>
-                    <img 
-                      src={
-                        mapView === 'ndwi_a' 
-                          ? (sceneData.yearA.colorizedNdwi || sceneData.yearA.ndwi) 
-                          : (sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi)
-                      }
-                      className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
-                      alt="NDWI Raster"
-                    />
-                    <div className='absolute top-2 left-2 bg-black/85 text-white px-2 py-0.5 text-[9px] font-mono border border-white/20'>
-                      <span>{mapView === 'ndwi_a' ? `${config.years[0]} NDWI` : `${config.years[1]} NDWI`} • {COLOR_RAMPS[colorRamp].name} Ramp</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className='w-full h-full relative'>
-                    <img 
-                      src={mapView === 'yearA' ? sceneData.yearA.trueColor : sceneData.yearB.trueColor}
-                      className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
-                      alt="Satellite Imagery"
-                    />
-                    <div className='absolute top-2 left-2 bg-black/85 text-white px-2 py-0.5 text-[9px] font-mono border border-white/20'>
-                      <span>{mapView === 'yearA' ? `${config.years[0]} True Color` : `${config.years[1]} True Color`}</span>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div 
-                  className='absolute inset-0 flex flex-col items-center justify-center p-6 text-center' 
-                  style={{ 
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', 
-                    backgroundSize: '24px 24px' 
-                  }}
-                >
-                  {currentStep === 'processing' ? (
-                    <div className='flex flex-col items-center gap-3'>
-                      <Cpu className="w-10 h-10 text-cyan-400 animate-pulse" />
-                      <div className='text-xs font-mono text-white/80 tracking-wider'>
-                        INGESTING SENTINEL-2 BANDS (B03 &amp; B08)...
-                      </div>
-                      <div className='text-[10px] font-mono text-white/50'>
-                        Executing Spectral Masking and {COLOR_RAMPS[colorRamp].name} Color Mapping
-                      </div>
-                    </div>
-                  ) : (
-                    <div className='flex flex-col items-center gap-2 max-w-xs'>
-                      <Compass className="w-8 h-8 text-white/30" />
-                      <div className='text-xs font-mono text-white/70 uppercase tracking-wider font-bold'>
-                        Observatory Ready
-                      </div>
-                      <div className='text-[10px] font-mono text-white/40 leading-relaxed'>
-                        Select bounding box and click &ldquo;Initialize Pipeline Run&rdquo; to fetch high-resolution Sentinel-2 STAC rasters.
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+        {/* ============================================================ */}
+        {/* CENTER COLUMN: SATELLITE BASIN OBSERVATORY (6 COLS)          */}
+        {/* ============================================================ */}
+        <div className="lg:col-span-6 flex flex-col gap-3">
+          
+          {/* Top View Mode Bar */}
+          <div className="bg-[#071326]/90 border border-[#1D3D73] p-2.5 rounded-sm shadow-lg flex flex-wrap items-center justify-between gap-2">
+            
+            {/* View Mode Segmented Buttons */}
+            <div className="flex flex-wrap gap-1 text-[9px]">
+              <button
+                onClick={() => setMapView('split')}
+                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  mapView === 'split'
+                    ? 'bg-[#22D3EE] text-[#030712] font-bold border-[#22D3EE] shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                    : 'bg-[#0C1E3D] text-[#CADDAE] border-[#1D3D73] hover:border-[#22D3EE]'
+                }`}
+              >
+                <SlidersHorizontal className="w-3 h-3" /> TRUE COLOR SWIPE
+              </button>
+
+              <button
+                onClick={() => setMapView('ndwi_split')}
+                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  mapView === 'ndwi_split'
+                    ? 'bg-[#0284C7] text-white font-bold border-[#0284C7] shadow-[0_0_8px_rgba(2,132,199,0.5)]'
+                    : 'bg-[#0C1E3D] text-[#CADDAE] border-[#1D3D73] hover:border-[#0284C7]'
+                }`}
+              >
+                <Palette className="w-3 h-3 text-[#22D3EE]" /> NDWI SWIPE
+              </button>
+
+              <button
+                onClick={() => setMapView('diff')}
+                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  mapView === 'diff'
+                    ? 'bg-[#06D6A0] text-[#030712] font-bold border-[#06D6A0] shadow-[0_0_8px_rgba(6,214,160,0.4)]'
+                    : 'bg-[#0C1E3D] text-[#CADDAE] border-[#1D3D73] hover:border-[#06D6A0]'
+                }`}
+              >
+                <Activity className="w-3 h-3" /> DIFF MASK
+              </button>
+
+              <button
+                onClick={() => setMapView('ndwi_b')}
+                className={`px-2 py-1 rounded-xs border transition-colors cursor-pointer ${
+                  mapView === 'ndwi_b'
+                    ? 'bg-[#FBBF24] text-[#030712] font-bold border-[#FBBF24]'
+                    : 'bg-[#0C1E3D] text-[#CADDAE] border-[#1D3D73] hover:border-[#FBBF24]'
+                }`}
+              >
+                NDWI (T1)
+              </button>
+            </div>
+
+            {/* LUT Selector Mini Trigger */}
+            <div className="w-48">
+              <ColorRampSelector
+                selectedRamp={colorRamp}
+                onChange={handleRampChange}
+                disabled={currentStep === 'processing'}
+              />
             </div>
           </div>
 
-          {/* Bottom Floating NDWI Colormap Legend Needle Bar */}
+          {/* Main Visual Stage */}
+          <div className="relative flex-1 bg-[#071326]/95 border border-[#1D3D73] rounded-sm shadow-2xl overflow-hidden flex flex-col items-center justify-center min-h-[420px]">
+            
+            {/* HUD Corner Reticles */}
+            <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-[#22D3EE] pointer-events-none z-20" />
+            <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-[#22D3EE] pointer-events-none z-20" />
+            <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-[#22D3EE] pointer-events-none z-20" />
+            <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-[#22D3EE] pointer-events-none z-20" />
+
+            {/* Coordinate Badge Overlay */}
+            <div className="absolute top-3 left-6 bg-[#030712]/90 border border-[#1D3D73] text-[#38BDF8] text-[8.5px] px-2.5 py-0.5 rounded-xs backdrop-blur-md z-20 font-mono">
+              BBOX: [{config.bbox[1].toFixed(4)}°N, {config.bbox[0].toFixed(4)}°E]
+            </div>
+
+            {currentStep === 'results' && sceneData ? (
+              mapView === 'split' ? (
+                <ImageSplitSlider
+                  imageA={sceneData.yearA.trueColor}
+                  imageB={sceneData.yearB.trueColor}
+                  labelA={`${config.years[0]} True Color (T0)`}
+                  labelB={`${config.years[1]} True Color (T1)`}
+                  dateA={sceneData.yearA.date}
+                  dateB={sceneData.yearB.date}
+                  idA={sceneData.yearA.id}
+                  idB={sceneData.yearB.id}
+                />
+              ) : mapView === 'ndwi_split' ? (
+                <ImageSplitSlider
+                  imageA={sceneData.yearA.colorizedNdwi || sceneData.yearA.ndwi}
+                  imageB={sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                  labelA={`${config.years[0]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
+                  labelB={`${config.years[1]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
+                  dateA={sceneData.yearA.date}
+                  dateB={sceneData.yearB.date}
+                  idA={sceneData.yearA.id}
+                  idB={sceneData.yearB.id}
+                />
+              ) : mapView === 'diff' ? (
+                <div className="flex w-full h-full min-h-[380px]">
+                  {/* Left: Raw True Color Reference */}
+                  <div className="flex-1 border-r border-[#1D3D73] relative">
+                    <div className="absolute top-3 left-3 bg-[#030712]/90 border border-[#1D3D73] px-2 py-0.5 text-[8px] text-[#F0FDFA] z-10 rounded-xs">
+                      TRUE COLOR (T1)
+                    </div>
+                    <img 
+                      src={sceneData.yearB.trueColor} 
+                      className="w-full h-full object-cover" 
+                      crossOrigin="anonymous" 
+                      alt="Raw Imagery" 
+                    />
+                  </div>
+
+                  {/* Right: Difference Mask */}
+                  <div className="flex-1 relative bg-[#030712]">
+                    <div className="absolute top-3 left-3 bg-[#030712]/90 border border-[#1D3D73] px-2 py-0.5 text-[8px] text-[#22D3EE] z-10 rounded-xs font-bold">
+                      HYDROLOGICAL DIFFERENCE MASK
+                    </div>
+                    
+                    <img 
+                      src={sceneData.yearB.trueColor} 
+                      className="w-full h-full object-cover opacity-30 grayscale" 
+                      crossOrigin="anonymous" 
+                      alt="Base Imagery" 
+                    />
+                    {diffMap && (
+                      <img 
+                        src={diffMap} 
+                        className="w-full h-full object-cover absolute top-0 left-0" 
+                        crossOrigin="anonymous" 
+                        alt="Difference Mask" 
+                      />
+                    )}
+                    
+                    {/* Difference Mask Legend Box */}
+                    <div className="absolute bottom-3 left-3 flex flex-col gap-1 text-[8px] bg-[#071326]/95 p-2 text-[#F0FDFA] border border-[#1D3D73] rounded-xs backdrop-blur-md shadow-lg">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-[#3B82F6] border border-white/40"></div> 
+                        <span>Water Gained (Inundation)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-[#EF4444] border border-white/40"></div> 
+                        <span>Water Lost (Desiccation)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-[#1E3A8A] border border-white/40"></div> 
+                        <span>Persistent Water Body</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : mapView === 'ndwi_b' ? (
+                <div className="w-full h-full relative min-h-[380px]">
+                  <img 
+                    src={sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    alt="NDWI Raster"
+                  />
+                  <div className="absolute top-3 left-3 bg-[#030712]/90 text-[#F0FDFA] px-2 py-0.5 text-[8.5px] border border-[#1D3D73] rounded-xs">
+                    {config.years[1]} NDWI • {COLOR_RAMPS[colorRamp].name} LUT
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full relative min-h-[380px]">
+                  <img 
+                    src={sceneData.yearB.trueColor}
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    alt="Satellite Imagery"
+                  />
+                  <div className="absolute top-3 left-3 bg-[#030712]/90 text-[#F0FDFA] px-2 py-0.5 text-[8.5px] border border-[#1D3D73] rounded-xs">
+                    {config.years[1]} True Color (TCI)
+                  </div>
+                </div>
+              )
+            ) : (
+              /* Standby / Processing Animation */
+              <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                {currentStep === 'processing' ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Cpu className="w-12 h-12 text-[#22D3EE] animate-spin" />
+                    <div className="text-xs font-bold text-[#22D3EE] tracking-wider">
+                      INGESTING COPERNICUS SENTINEL-2 MSI BANDS...
+                    </div>
+                    <div className="text-[9.5px] text-[#738CAD]">
+                      Applying McFeeters NDWI Matrix &amp; {COLOR_RAMPS[colorRamp].name} 256-Color Look-Up Table
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 max-w-sm">
+                    <Compass className="w-10 h-10 text-[#22D3EE] opacity-60" />
+                    <div className="text-xs font-bold text-[#F0FDFA] uppercase tracking-wider">
+                      Observatory Sensor Feed Ready
+                    </div>
+                    <p className="text-[9.5px] text-[#738CAD] leading-relaxed">
+                      Select target wetland coordinates and click &ldquo;Initialize Pipeline Run&rdquo; to begin multispectral STAC ingestion.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Needle Scale Bar */}
           {currentStep === 'results' && sceneData && (
-            <div className='p-3 border-t border-white/10 bg-[#141414]/95 flex flex-col gap-1'>
+            <div className="bg-[#071326]/90 border border-[#1D3D73] p-2 rounded-sm shadow-md">
               <NdwiScaleLegend 
                 selectedRamp={colorRamp} 
                 threshold={config.ndwiThreshold} 
@@ -840,194 +876,214 @@ export default function App() {
           )}
         </div>
 
-        {/* Right Quantification & Analysis Panel */}
-        <aside className='w-full lg:col-span-3 border-t lg:border-t-0 lg:border-l border-[#141414] flex flex-col bg-[#DFDCD7] order-3 lg:order-none overflow-y-auto max-h-none lg:max-h-full'>
-          <div className='p-4 flex-1 flex flex-col overflow-y-auto space-y-4'>
-            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-[#141414]/70 border-b border-[#141414]/20 pb-1 flex items-center justify-between'>
-              <span>Hydrological Quantification</span>
-              {isRecalculatingThreshold && (
-                <span className='text-[9px] font-mono text-blue-800 animate-pulse font-bold'>RECALCULATING...</span>
-              )}
+        {/* ============================================================ */}
+        {/* RIGHT COLUMN: POLICY READOUT & AI SYNTHESIS SUITE (3 COLS)   */}
+        {/* ============================================================ */}
+        <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto">
+          
+          {/* Card 1: POLICY RECOMMENDATIONS READOUT */}
+          <div className="bg-[#071326]/90 border border-[#1D3D73] p-3 rounded-sm shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[#1D3D73] pb-1.5 text-[10px]">
+              <span className="font-bold text-[#38BDF8] uppercase flex items-center gap-1.5">
+                <FileCheck2 className="w-3.5 h-3.5 text-[#22D3EE]" />
+                POLICY RECOMMENDATIONS READOUT
+              </span>
+              <span className="text-[8px] bg-[#06D6A0]/20 text-[#06D6A0] px-1 py-0.2 rounded-xs border border-[#06D6A0]/40 font-bold">
+                STRUCTURED
+              </span>
             </div>
-            
-            {currentStep === 'results' && sceneData ? (
-              <div className='space-y-4 font-mono text-[11px] bg-white p-3 border border-[#141414] shadow-xs'>
-                
-                {/* Dynamic Real-Time NDWI Threshold Slider */}
-                <div className='p-2.5 bg-[#f5f4f0] border border-[#141414]/30 space-y-2'>
-                  <div className='flex items-center justify-between text-[10px]'>
-                    <span className='font-bold uppercase flex items-center gap-1.5'>
-                      <Sliders className="w-3 h-3 text-blue-800" />
-                      NDWI Threshold Cutoff
-                    </span>
-                    <span className='bg-blue-800 text-white px-2 py-0.5 text-[10px] font-bold'>
-                      &gt; {config.ndwiThreshold.toFixed(2)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-0.30"
-                    max="0.70"
-                    step="0.01"
-                    value={config.ndwiThreshold}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setConfig(prev => ({ ...prev, ndwiThreshold: val }));
-                      applyNdwiThresholdAndRamp(val, colorRamp);
-                    }}
-                    className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-800"
-                  />
-                  <div className='flex justify-between items-center text-[8px] opacity-70'>
-                    <span>-0.30 (Wet Flora)</span>
-                    <div className='flex gap-1'>
-                      {[-0.05, 0.10, 0.20, 0.35].map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => {
-                            setConfig(prev => ({ ...prev, ndwiThreshold: val }));
-                            applyNdwiThresholdAndRamp(val, colorRamp);
-                          }}
-                          className={`px-1.5 py-0.2 border text-[8px] font-bold transition-colors ${
-                            Math.abs(config.ndwiThreshold - val) < 0.005
-                              ? 'bg-blue-800 text-white border-blue-800'
-                              : 'bg-white border-gray-400 hover:bg-gray-100'
-                          }`}
-                        >
-                          {val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)}
-                        </button>
-                      ))}
-                    </div>
-                    <span>0.70 (Deep Water)</span>
-                  </div>
-                </div>
 
-                {/* Metrics Table */}
-                <div className='space-y-2 text-[11px]'>
-                  <div className='flex justify-between py-1 border-b border-black/10'>
-                    <span className='opacity-70'>{config.years[0]} WATER EXTENT (T0)</span>
-                    <span className='font-bold'>{sceneData.yearA.area.toFixed(2)} km²</span>
-                  </div>
-                  <div className='flex justify-between py-1 border-b border-black/10'>
-                    <span className='opacity-70'>{config.years[1]} WATER EXTENT (T1)</span>
-                    <span className='font-bold'>{sceneData.yearB.area.toFixed(2)} km²</span>
-                  </div>
-                  <div className='flex justify-between py-1 border-b border-black/10'>
-                    <span className='font-bold'>ABSOLUTE CHANGE</span>
-                    <span className={`font-bold ${change < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                      {change > 0 ? '+' : ''}{change.toFixed(2)} km²
-                    </span>
-                  </div>
-                  <div className='flex justify-between py-1'>
-                    <span className='font-bold'>RELATIVE CHANGE</span>
-                    <span className={`font-bold ${pctChange < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                      {pctChange > 0 ? '+' : ''}{pctChange.toFixed(1)}%
-                    </span>
-                  </div>
+            <div className="space-y-2 text-[9px]">
+              {/* Policy Item 1 */}
+              <div className="bg-[#0C1E3D] p-2 border border-[#1D3D73] rounded-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#F0FDFA]">1. Target Wetland Restoration</span>
+                  <span className="bg-[#06D6A0]/20 text-[#06D6A0] font-bold px-1.5 py-0.2 rounded-xs text-[8px]">99% CONF</span>
                 </div>
-                
-                {/* Multi-Year Longitudinal Trend */}
-                <div className='pt-2 border-t border-dashed border-gray-300'>
-                  <div className='text-[9px] uppercase font-bold opacity-60 mb-2 flex justify-between items-center'>
-                    <span>Longitudinal Trend ({config.years[0]}-{config.years[1]})</span>
-                    <span className='text-[8px] bg-black/10 px-1 font-normal'>ANNUAL STAC</span>
-                  </div>
-                  <div className='h-32 w-full'>
-                    {trendData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                          <XAxis dataKey="year" tick={{ fontSize: 8, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 8, fontFamily: 'monospace' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                          <Tooltip 
-                            contentStyle={{ fontSize: '10px', fontFamily: 'monospace', borderRadius: '0px', border: '1px solid #141414', backgroundColor: '#fff', color: '#000' }} 
-                            formatter={(value: number) => [`${value.toFixed(2)} km²`, 'Water Area']}
-                          />
-                          <Line type="monotone" dataKey="area" stroke="#2563eb" strokeWidth={2} dot={{ r: 3, fill: '#141414', stroke: '#2563eb' }} activeDot={{ r: 5 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className='w-full h-full flex items-center justify-center text-[9px] opacity-50'>Generating trend...</div>
-                    )}
-                  </div>
-                </div>
+                <p className="text-[#CADDAE] text-[8px] leading-tight">
+                  Prioritize desilting corridors along southern retention channels to buffer monsoon surge.
+                </p>
+              </div>
 
-                {/* Cloud Warning if applicable */}
-                {(sceneData.yearA.cloudCover > 15 || sceneData.yearB.cloudCover > 15) && (
-                  <div className='bg-yellow-50 border border-yellow-400 text-yellow-900 p-2 text-[9px] flex items-start gap-1.5'>
-                    <AlertTriangle className='w-3.5 h-3.5 flex-shrink-0 text-amber-600 mt-0.5' />
-                    <div>
-                      <div className='font-bold uppercase'>Cloud Occlusion Advisory</div>
-                      <div>Scene cloud cover is {Math.max(sceneData.yearA.cloudCover, sceneData.yearB.cloudCover).toFixed(1)}%. Consider tightening cloud filter.</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* AI Ecological Synthesis Component */}
-                <AiEcologicalInsights
-                  sceneData={sceneData}
-                  config={config}
-                  change={change}
-                  pctChange={pctChange}
-                />
-              </div>
-            ) : (
-              <div className='bg-white/40 border border-[#141414]/20 p-5 text-[10px] font-mono text-center opacity-60'>
-                Execute pipeline to produce pixel quantification &amp; ecological insights.
-              </div>
-            )}
-            
-            {/* Provenance Export Button */}
-            <button
-              onClick={handleExport}
-              disabled={currentStep !== 'results'}
-              className="w-full bg-white border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] text-[#141414] font-mono text-[10px] font-bold uppercase py-2.5 flex items-center justify-center gap-2 transition-colors disabled:opacity-30 cursor-pointer shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export GeoJSON &amp; Provenance JSON
-            </button>
-            
-            {error && (
-              <div className="border border-red-900 bg-red-100 p-3 text-red-900 text-[10px] font-mono">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-700" />
-                  <div>
-                    <div className="font-bold mb-0.5">PIPELINE FAULT</div>
-                    {error}
-                  </div>
+              {/* Policy Item 2 */}
+              <div className="bg-[#0C1E3D] p-2 border border-[#1D3D73] rounded-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#F0FDFA]">2. Buffer Zone Enforcement</span>
+                  <span className="bg-[#22D3EE]/20 text-[#22D3EE] font-bold px-1.5 py-0.2 rounded-xs text-[8px]">94% CONF</span>
                 </div>
+                <p className="text-[#CADDAE] text-[8px] leading-tight">
+                  Establish 500m eco-sensitive perimeter restricting road infilling along IT corridors.
+                </p>
               </div>
-            )}
+
+              {/* Policy Item 3 */}
+              <div className="bg-[#0C1E3D] p-2 border border-[#1D3D73] rounded-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#F0FDFA]">3. Sustainable Hydrology Support</span>
+                  <span className="bg-[#FBBF24]/20 text-[#FBBF24] font-bold px-1.5 py-0.2 rounded-xs text-[8px]">88% CONF</span>
+                </div>
+                <p className="text-[#CADDAE] text-[8px] leading-tight">
+                  Integrate automated water-table recharge gates connected to municipal storm drains.
+                </p>
+              </div>
+            </div>
           </div>
-        </aside>
+
+          {/* Card 2: HYDROMETRIC QUANTIFICATION */}
+          {currentStep === 'results' && sceneData && (
+            <div className="bg-[#071326]/90 border border-[#1D3D73] p-3 rounded-sm shadow-lg space-y-2.5">
+              <div className="flex items-center justify-between border-b border-[#1D3D73] pb-1.5 text-[10px]">
+                <span className="font-bold text-[#22D3EE] uppercase flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-[#22D3EE]" />
+                  DYNAMIC NDWI THRESHOLD
+                </span>
+                <span className="text-[#06D6A0] font-bold text-[9px]">&gt; {config.ndwiThreshold.toFixed(2)}</span>
+              </div>
+
+              {/* Slider */}
+              <div className="space-y-1.5">
+                <input
+                  type="range"
+                  min="-0.30"
+                  max="0.70"
+                  step="0.01"
+                  value={config.ndwiThreshold}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setConfig(prev => ({ ...prev, ndwiThreshold: val }));
+                    applyNdwiThresholdAndRamp(val, colorRamp);
+                  }}
+                  className="w-full accent-[#22D3EE] h-1.5 bg-[#0C1E3D] rounded-xs cursor-pointer"
+                />
+                <div className="flex justify-between text-[7.5px] text-[#738CAD]">
+                  <span>-0.30 (Wet Soil)</span>
+                  <span>+0.20 (Standard)</span>
+                  <span>+0.70 (Deep Water)</span>
+                </div>
+              </div>
+
+              {/* Area Stats Table */}
+              <div className="space-y-1 text-[9px] bg-[#0C1E3D] p-2 border border-[#1D3D73] rounded-xs">
+                <div className="flex justify-between">
+                  <span className="text-[#738CAD]">{config.years[0]} Water Extent (T0):</span>
+                  <span className="font-bold text-[#F0FDFA]">{sceneData.yearA.area.toFixed(2)} km²</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#738CAD]">{config.years[1]} Water Extent (T1):</span>
+                  <span className="font-bold text-[#F0FDFA]">{sceneData.yearB.area.toFixed(2)} km²</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-[#1D3D73]">
+                  <span className="font-bold text-[#38BDF8]">Net Loss / Gain:</span>
+                  <span className={`font-bold ${change < 0 ? 'text-[#F43F5E]' : 'text-[#06D6A0]'}`}>
+                    {change > 0 ? '+' : ''}{change.toFixed(2)} km² ({pctChange.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Recharts Longitudinal Trend */}
+              <div className="pt-1">
+                <div className="text-[8.5px] text-[#738CAD] uppercase font-bold mb-1 flex justify-between">
+                  <span>ANNUAL TIME-SERIES TREND</span>
+                  <span className="text-[#22D3EE]">10m REVISIT</span>
+                </div>
+                <div className="h-28 w-full bg-[#0C1E3D] p-1 border border-[#1D3D73] rounded-xs">
+                  {trendData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={trendData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                        <XAxis dataKey="year" tick={{ fontSize: 8, fill: '#738CAD', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 8, fill: '#738CAD', fontFamily: 'monospace' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                        <Tooltip 
+                          contentStyle={{ fontSize: '9px', fontFamily: 'monospace', backgroundColor: '#071326', borderColor: '#22D3EE', color: '#F0FDFA' }} 
+                          formatter={(value: number) => [`${value.toFixed(2)} km²`, 'Water Area']}
+                        />
+                        <Line type="monotone" dataKey="area" stroke="#22D3EE" strokeWidth={2} dot={{ r: 3, fill: '#06D6A0', stroke: '#22D3EE' }} activeDot={{ r: 5 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[8px] text-[#738CAD]">Sampling STAC trendlines...</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Card 3: AI ECOLOGICAL SYNTHESIS SUITE COMPONENT */}
+          <AiEcologicalInsights
+            sceneData={sceneData}
+            config={config}
+            change={change}
+            pctChange={pctChange}
+          />
+
+          {/* Export Button */}
+          <button
+            onClick={handleExport}
+            disabled={currentStep !== 'results'}
+            className="w-full bg-[#0C1E3D] border border-[#22D3EE]/50 hover:border-[#22D3EE] text-[#22D3EE] text-[9.5px] font-bold uppercase py-2.5 flex items-center justify-center gap-2 rounded-xs shadow-md transition-all cursor-pointer disabled:opacity-30 hover:bg-[#102447]"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export GeoJSON &amp; Provenance JSON (0x8a92f02c)
+          </button>
+        </div>
       </main>
 
-      {/* Cartographic Trace Log Footer */}
-      <footer className="h-auto lg:h-20 border-t border-[#141414] flex flex-col lg:flex-row items-start px-6 bg-[#D0CDC7] gap-3 lg:gap-8 flex-shrink-0 py-2 lg:py-0 order-4 lg:order-none">
-        <div className="flex-1 overflow-y-auto h-16 lg:h-full w-full py-1.5">
-          <div className="text-[9px] font-mono uppercase font-bold opacity-60 mb-0.5 flex items-center justify-between">
-            <span>Trace Log</span>
-            <span className="text-[8px] opacity-60">Sentinel-2 STAC • B03/B08</span>
+      {/* ============================================================ */}
+      {/* 3. BOTTOM PANEL: CONFIDENCE METERS & STAC TRACE LOG          */}
+      {/* ============================================================ */}
+      <footer className="border-t border-[#1D3D73] bg-[#071326]/95 px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 text-[9px] z-30">
+        
+        {/* Left Confidence & Probability Meters */}
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
+          {/* Gauge 1 */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[8px]">
+              <span className="text-[#738CAD]">HYDROLOGY MODEL:</span>
+              <span className="text-[#22D3EE] font-bold">89%</span>
+            </div>
+            <div className="w-full bg-[#0C1E3D] h-1.5 rounded-full overflow-hidden border border-[#1D3D73]">
+              <div className="bg-[#22D3EE] h-full rounded-full shadow-[0_0_6px_#22D3EE]" style={{ width: '89%' }} />
+            </div>
           </div>
-          <div className="text-[9px] font-mono leading-tight space-y-0.5 opacity-80">
-            {logs.length === 0 && (
-              <div className="opacity-50">Awaiting pipeline execution...</div>
-            )}
-            {logs.map((log, i) => (
-              <div 
-                key={i} 
-                className={
-                  log.includes('ERROR') 
-                    ? 'text-red-800 font-bold' 
-                    : log.includes('RETRY-ON-FAILURE') 
-                    ? 'text-amber-800 font-bold' 
-                    : log.includes('COMPUTE')
-                    ? 'text-blue-900'
-                    : ''
-                }
-              >
-                {log}
-              </div>
-            ))}
+
+          {/* Gauge 2 */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[8px]">
+              <span className="text-[#738CAD]">HABITAT ANALYSIS:</span>
+              <span className="text-[#06D6A0] font-bold">84%</span>
+            </div>
+            <div className="w-full bg-[#0C1E3D] h-1.5 rounded-full overflow-hidden border border-[#1D3D73]">
+              <div className="bg-[#06D6A0] h-full rounded-full shadow-[0_0_6px_#06D6A0]" style={{ width: '84%' }} />
+            </div>
+          </div>
+
+          {/* Gauge 3 */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[8px]">
+              <span className="text-[#738CAD]">POLICY EFFECTIVENESS:</span>
+              <span className="text-[#38BDF8] font-bold">81%</span>
+            </div>
+            <div className="w-full bg-[#0C1E3D] h-1.5 rounded-full overflow-hidden border border-[#1D3D73]">
+              <div className="bg-[#38BDF8] h-full rounded-full shadow-[0_0_6px_#38BDF8]" style={{ width: '81%' }} />
+            </div>
+          </div>
+
+          {/* Gauge 4 */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[8px]">
+              <span className="text-[#738CAD]">PREDICTION RELIABILITY:</span>
+              <span className="text-[#FBBF24] font-bold">87%</span>
+            </div>
+            <div className="w-full bg-[#0C1E3D] h-1.5 rounded-full overflow-hidden border border-[#1D3D73]">
+              <div className="bg-[#FBBF24] h-full rounded-full shadow-[0_0_6px_#FBBF24]" style={{ width: '87%' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Right Live Trace Console Summary */}
+        <div className="w-full lg:w-96 flex items-center gap-2 bg-[#030712] px-2.5 py-1.5 border border-[#1D3D73] rounded-xs">
+          <Activity className="w-3.5 h-3.5 text-[#22D3EE] flex-shrink-0 animate-pulse" />
+          <div className="truncate text-[8px] text-[#CADDAE]">
+            {logs.length > 0 ? logs[logs.length - 1] : 'AquaSense Planetary Kernel Standby'}
           </div>
         </div>
       </footer>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Palette, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { Palette, ChevronDown, Check } from 'lucide-react';
 import { COLOR_RAMPS, ColorRampId, ColorRampDefinition } from '../utils/colorRamps';
 
 interface ColorRampSelectorProps {
@@ -37,10 +37,10 @@ export function ColorRampSelector({
 
   return (
     <div ref={dropdownRef} className="relative font-mono text-[11px] select-none">
-      <div className="flex items-center justify-between text-[10px] uppercase opacity-60 mb-1">
-        <span className="flex items-center gap-1 font-bold">
-          <Palette className="w-3 h-3 text-blue-700" />
-          Colormap Ramp
+      <div className="flex items-center justify-between text-[10px] uppercase text-[#38BDF8] mb-1 font-bold">
+        <span className="flex items-center gap-1.5">
+          <Palette className="w-3.5 h-3.5 text-[#22D3EE]" />
+          Colormap Look-Up Table (LUT)
         </span>
       </div>
 
@@ -49,19 +49,19 @@ export function ColorRampSelector({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-full text-left bg-white border border-[#141414] p-2 flex flex-col gap-1.5 transition-all shadow-xs hover:border-black focus:outline-none ${
+        className={`w-full text-left bg-[#071326] border border-[#1D3D73] hover:border-[#22D3EE] p-2.5 flex flex-col gap-1.5 transition-all shadow-md focus:outline-none rounded-sm ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-        } ${isOpen ? 'ring-1 ring-[#141414]' : ''}`}
+        } ${isOpen ? 'ring-1 ring-[#22D3EE] border-[#22D3EE]' : ''}`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#141414] text-[11px]">{currentRamp.name}</span>
-            <span className="text-[8px] uppercase tracking-wider px-1 py-0.2 bg-[#141414]/10 text-[#141414] font-medium">
+            <span className="font-bold text-[#F0FDFA] text-[11px] tracking-wide">{currentRamp.name}</span>
+            <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 bg-[#22D3EE]/15 border border-[#22D3EE]/30 text-[#22D3EE] font-bold rounded-xs">
               {currentRamp.category}
             </span>
           </div>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-[#141414] transition-transform duration-200 ${
+            className={`w-3.5 h-3.5 text-[#22D3EE] transition-transform duration-200 ${
               isOpen ? 'rotate-180' : ''
             }`}
           />
@@ -69,7 +69,7 @@ export function ColorRampSelector({
 
         {/* Dynamic Gradient Bar */}
         <div
-          className="w-full h-3 border border-[#141414]/30 relative overflow-hidden"
+          className="w-full h-3 border border-[#1D3D73] relative overflow-hidden rounded-xs"
           style={{ background: currentRamp.cssGradient }}
         >
           <div className="absolute inset-0 flex justify-between items-center px-1 text-[7px] text-white font-bold mix-blend-difference">
@@ -82,7 +82,7 @@ export function ColorRampSelector({
 
       {/* Dropdown Menu Panel */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[#F9F8F6] border border-[#141414] shadow-lg p-1 space-y-1 max-h-72 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-[#071326]/95 backdrop-blur-md border border-[#22D3EE]/40 shadow-2xl p-1.5 space-y-1.5 max-h-72 overflow-y-auto rounded-sm">
           {rampList.map((ramp) => {
             const isSelected = ramp.id === selectedRamp;
             return (
@@ -92,35 +92,35 @@ export function ColorRampSelector({
                   onChange(ramp.id);
                   setIsOpen(false);
                 }}
-                className={`p-2 border transition-all cursor-pointer flex flex-col gap-1 ${
+                className={`p-2 border transition-all cursor-pointer flex flex-col gap-1 rounded-xs ${
                   isSelected
-                    ? 'bg-[#141414] text-[#E4E3E0] border-[#141414]'
-                    : 'bg-white text-[#141414] border-[#141414]/20 hover:bg-[#EAE8E4] hover:border-[#141414]'
+                    ? 'bg-[#0C1E3D] text-[#F0FDFA] border-[#22D3EE] shadow-[0_0_8px_rgba(34,211,238,0.2)]'
+                    : 'bg-[#0A1832] text-[#CADDAE] border-[#1D3D73]/60 hover:bg-[#102447] hover:border-[#22D3EE]/60'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-[11px]">{ramp.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[11px] text-[#F0FDFA]">{ramp.name}</span>
                     <span
-                      className={`text-[8px] uppercase px-1 py-0.2 font-medium ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-black/10 text-black'
+                      className={`text-[8px] uppercase px-1.5 py-0.5 font-medium rounded-xs ${
+                        isSelected ? 'bg-[#22D3EE]/25 text-[#22D3EE] border border-[#22D3EE]/40' : 'bg-black/30 text-[#738CAD]'
                       }`}
                     >
                       {ramp.category}
                     </span>
                   </div>
-                  {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                  {isSelected && <Check className="w-3.5 h-3.5 text-[#22D3EE]" />}
                 </div>
 
                 {/* Mini Gradient Preview */}
                 <div
-                  className="w-full h-2 border border-black/20"
+                  className="w-full h-2 border border-[#1D3D73] rounded-xs"
                   style={{ background: ramp.cssGradient }}
                 />
 
                 <p
-                  className={`text-[8px] leading-tight opacity-75 ${
-                    isSelected ? 'text-gray-300' : 'text-gray-600'
+                  className={`text-[8.5px] leading-tight ${
+                    isSelected ? 'text-[#38BDF8]' : 'text-[#738CAD]'
                   }`}
                 >
                   {ramp.description}
@@ -141,39 +141,38 @@ interface NdwiScaleLegendProps {
 
 export function NdwiScaleLegend({ selectedRamp, threshold }: NdwiScaleLegendProps) {
   const ramp = COLOR_RAMPS[selectedRamp] || COLOR_RAMPS.viridis;
-  // Threshold position in % from -1.0 to +1.0
   const thresholdPct = Math.max(0, Math.min(100, ((threshold + 1) / 2) * 100));
 
   return (
-    <div className="font-mono text-[9px] bg-black/85 text-white p-2 border border-white/20">
+    <div className="font-mono text-[9px] bg-[#071326]/90 backdrop-blur-sm text-[#F0FDFA] p-2.5 border border-[#1D3D73] rounded-sm">
       <div className="flex justify-between items-center mb-1">
-        <span className="uppercase text-[8px] tracking-wider font-semibold opacity-90">
-          Scale: {ramp.name}
+        <span className="uppercase text-[8px] tracking-wider font-bold text-[#22D3EE]">
+          LUT Scale: {ramp.name}
         </span>
-        <span className="text-[8px] opacity-75 font-mono">
-          Threshold: &gt;{threshold.toFixed(2)}
+        <span className="text-[8px] text-[#06D6A0] font-mono font-bold">
+          Threshold Cutoff: &gt;{threshold.toFixed(2)}
         </span>
       </div>
 
       {/* Gradient Bar with Threshold Marker */}
-      <div className="relative my-1.5">
+      <div className="relative my-2">
         <div
-          className="w-full h-2.5 border border-white/30 relative"
+          className="w-full h-2.5 border border-[#1D3D73] relative rounded-xs"
           style={{ background: ramp.cssGradient }}
         />
         {/* Needle Pin */}
         <div
-          className="absolute -top-0.5 bottom-0 w-[2px] bg-white pointer-events-none z-10"
+          className="absolute -top-1 bottom-0 w-[2px] bg-[#22D3EE] pointer-events-none z-10 shadow-[0_0_6px_#22D3EE]"
           style={{ left: `${thresholdPct}%` }}
         >
-          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[3px] border-t-white" />
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-t-[4px] border-t-[#22D3EE]" />
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-[7.5px] opacity-70">
+      <div className="flex justify-between items-center text-[7.5px] text-[#738CAD]">
         <span>-1.0 (Non-Water)</span>
         <span>0.0</span>
-        <span>+1.0 (Water)</span>
+        <span className="text-[#22D3EE] font-bold">+1.0 (Water)</span>
       </div>
     </div>
   );
