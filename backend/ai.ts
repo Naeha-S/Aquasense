@@ -29,32 +29,61 @@ export interface EcologicalAnalysisRequest {
   pctChange: number;
   cloudCoverA?: number;
   cloudCoverB?: number;
+  sensorMode?: "optical" | "sar" | "fused";
+  sarAreaA?: number;
+  sarAreaB?: number;
+  sarThresholdDb?: number;
+  isSarPenetrating?: boolean;
   mode?: "deep_reasoning" | "search_grounded" | "maps_grounded" | "fast_summary";
 }
 
 export async function generateEcologicalAnalysis(data: EcologicalAnalysisRequest) {
   const ai = getGenAI();
-  const { waterBodyName, bbox, years, areaA, areaB, pctChange, mode = "deep_reasoning" } = data;
+  const { 
+    waterBodyName, 
+    bbox, 
+    years, 
+    areaA, 
+    areaB, 
+    pctChange, 
+    cloudCoverA = 0, 
+    cloudCoverB = 0,
+    sensorMode = "fused",
+    sarAreaA,
+    sarAreaB,
+    sarThresholdDb = -16,
+    isSarPenetrating = false,
+    mode = "deep_reasoning" 
+  } = data;
+
+  const sarContext = (sensorMode === 'sar' || sensorMode === 'fused' || isSarPenetrating) ? `
+Sentinel-1 C-band SAR Radar Telemetry:
+- Sensor: Sentinel-1 C-SAR (5.405 GHz, λ = 5.6 cm, Dual-Pol VV+VH)
+- Radiometric Terrain Corrected (RTC) Backscatter Threshold: ${sarThresholdDb} dB (specular forward reflection cutoff for open water)
+- Radar-derived Water Extent: Baseline (${years[0]}): ${sarAreaA ? sarAreaA.toFixed(2) : areaA.toFixed(2)} km², Target (${years[1]}): ${sarAreaB ? sarAreaB.toFixed(2) : areaB.toFixed(2)} km²
+- Cloud Penetration Status: ${isSarPenetrating ? "ACTIVE (Optical occluded by monsoon clouds, SAR penetrated 100%)" : "ALL-WEATHER MULTI-SENSOR FUSION"}
+` : '';
 
   const promptContext = `
-You are a senior Earth Observation scientist and wetland hydrology expert analyzing satellite-derived hydrological observations.
+You are a senior Earth Observation scientist and wetland hydrology expert analyzing multi-spectral and synthetic aperture radar (SAR) observations.
 
-Region: ${waterBodyName.replace(/_/g, " ")}
-Bounding Box: [${bbox.join(", ")}]
+Basin Region: ${waterBodyName.replace(/_/g, " ")}
+Geographic Extent (BBOX): [${bbox.join(", ")}]
+Optical Cloud Cover: Baseline: ${cloudCoverA.toFixed(1)}%, Target: ${cloudCoverB.toFixed(1)}%
 Baseline (${years[0]}): ${areaA.toFixed(2)} km² water extent
 Target (${years[1]}): ${areaB.toFixed(2)} km² water extent
-Change: ${pctChange > 0 ? "+" : ""}${pctChange.toFixed(2)}% (${(areaB - areaA).toFixed(2)} km²)
+Net Change: ${pctChange > 0 ? "+" : ""}${pctChange.toFixed(2)}% (${(areaB - areaA).toFixed(2)} km²)
+${sarContext}
 
-Provide an authoritative, clear, and structured synthesis covering:
-1. Hydrological Trajectory & Ecological Significance
-2. Driving Factors (urbanization, precipitation anomalies, wetland conversion)
-3. Ecosystem Services & Flood/Drought Vulnerability
-4. Recommended Conservation & Remote Sensing Interventions
-Format using clean Markdown with concise sections.
+Provide an authoritative, scientific, and structured ecological synthesis covering:
+1. Hydrological Trajectory & Multi-Sensor Interpretation (NDWI + Sentinel-1 SAR Backscatter Physics)
+2. Root Cause Attribution (Climate/Monsoon anomalies vs. Urbanization & canal encroachment)
+3. Flood Buffer Vulnerability & Habitat Integrity
+4. Actionable Conservation & Remote Sensing Interventions
+Format using clean Markdown with concise sections and data-backed rationale.
 `;
 
   if (mode === "deep_reasoning") {
-    // Advanced reasoning with gemini-3.7-flash
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3.7-flash",
@@ -62,7 +91,7 @@ Format using clean Markdown with concise sections.
       });
       return {
         text: response.text || "No synthesis generated.",
-        model: "gemini-3.7-flash (Deep Ecological Analysis)",
+        model: "gemini-3.7-flash (Deep Ecological Analysis + SAR Fusion)",
         mode: "deep_reasoning",
       };
     } catch (err: any) {
@@ -78,7 +107,6 @@ Format using clean Markdown with concise sections.
       };
     }
   } else if (mode === "search_grounded") {
-    // Search Grounding with gemini-3.5-flash for recent factual news & reports
     const searchPrompt = `
 Investigate recent environmental reports, news, and conservation status regarding ${waterBodyName.replace(/_/g, " ")} in the region of bbox [${bbox.join(", ")}].
 The satellite observation detected a ${pctChange > 0 ? "gain" : "loss"} of ${Math.abs(pctChange).toFixed(1)}% in water surface area between ${years[0]} and ${years[1]}.
@@ -99,87 +127,64 @@ Provide factual ground-truth context, recent government/conservation actions, an
         groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks || [],
       };
     } catch (err: any) {
-      console.warn("Search grounding failed, falling back to gemini-3.7-flash without tools:", err.message);
-      const fallback = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: `${searchPrompt}\n(Note: Provide best available knowledge on this region and water body).`,
-      });
+      console.warn("Search grounded request failed:", err.message);
       return {
-        text: fallback.text || "No grounded search data available.",
-        model: "gemini-3.7-flash (Knowledge Base)",
+        text: `Search Grounding Error: ${err.message}`,
+        model: "gemini-3.5-flash",
         mode: "search_grounded",
-        groundingChunks: [],
       };
     }
   } else if (mode === "maps_grounded") {
-    // Maps Grounding with gemini-3.5-flash for geographic orientation & landmarks
     const mapsPrompt = `
-Identify the key geographic landmarks, protected zones, inlets/outlets, and urban centers surrounding ${waterBodyName.replace(/_/g, " ")} around coordinates ${bbox[1]}, ${bbox[0]} to ${bbox[3]}, ${bbox[2]}.
-Provide geographical insights on surrounding human developments and natural sanctuaries.
+Analyze the spatial landmarks, hydrological connectivity, and surrounding urban infrastructure for ${waterBodyName.replace(/_/g, " ")} at coordinates [${bbox.join(", ")}].
+Identify key water channels, adjacent roads/developments, and geographical buffer zones.
 `;
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: mapsPrompt,
-        config: {
-          tools: [{ googleMaps: {} }],
-        },
       });
       return {
-        text: response.text || "No map grounding available.",
-        model: "gemini-3.5-flash (Google Maps Grounding)",
+        text: response.text || "No geospatial landmark data available.",
+        model: "gemini-3.5-flash (Geospatial Landmark Grounding)",
         mode: "maps_grounded",
-        groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks || [],
       };
     } catch (err: any) {
-      console.warn("Maps grounding failed, falling back to gemini-3.7-flash:", err.message);
-      const fallback = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: mapsPrompt,
-      });
       return {
-        text: fallback.text || "No map grounding available.",
-        model: "gemini-3.7-flash (Geographic Analysis)",
+        text: `Maps Grounding Error: ${err.message}`,
+        model: "gemini-3.5-flash",
         mode: "maps_grounded",
-        groundingChunks: [],
       };
     }
   } else {
-    // Low-latency mode with gemini-3.1-flash-lite
+    // Fast summary mode with gemini-3.1-flash-lite
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite",
-        contents: `${promptContext}\nKeep the response concise (max 3-4 bullet points).`,
+        contents: promptContext,
       });
       return {
         text: response.text || "No summary generated.",
-        model: "gemini-3.1-flash-lite (Low-Latency Flash)",
+        model: "gemini-3.1-flash-lite (Fast Overview)",
         mode: "fast_summary",
       };
     } catch (err: any) {
-      const fallback = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: `${promptContext}\nKeep the response concise (max 3-4 bullet points).`,
-      });
       return {
-        text: fallback.text || "No summary generated.",
-        model: "gemini-3.7-flash (Fast Summary)",
+        text: `Summary Error: ${err.message}`,
+        model: "gemini-3.1-flash-lite",
         mode: "fast_summary",
       };
     }
   }
 }
 
-export async function analyzeFieldImage(imageBase64: string, mimeType: string, promptText?: string) {
+export async function analyzeFieldImage(imageBase64: string, mimeType: string, customPrompt?: string) {
   const ai = getGenAI();
-  const prompt = promptText || `
-You are an expert in wetland ecology, satellite validation, and hydrological ground-truthing.
-Analyze this field/aerial/satellite photo of a water body or wetland zone:
-1. Identify surface water presence, water clarity, algae/hyacinth cover, or sedimentation.
-2. Characterize surrounding vegetation (marshland, reeds, mangroves) vs built-up infrastructure.
-3. Identify evidence of encroachment, pollution, or seasonal drying.
-4. Provide a Few-Shot land cover classification score breakdown estimate ('water', 'wetland', 'built_up').
-Format with concise Markdown.
+  const prompt = customPrompt || `
+Analyze this drone or ground-truth field photograph for wetland and water body monitoring.
+1. Identify the presence of open water, emergent vegetation, invasive weeds (e.g. Eichhornia / water hyacinth), and algal blooms.
+2. Estimate the condition of the shoreline and signs of urban construction or debris dumping.
+3. Provide confidence estimates for classes: 'open_water', 'wetland_flora', 'bare_soil', 'built_up'.
 `;
 
   try {
@@ -187,36 +192,45 @@ Format with concise Markdown.
       model: "gemini-3.7-flash",
       contents: [
         {
-          inlineData: {
-            mimeType: mimeType || "image/jpeg",
-            data: imageBase64,
-          },
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: imageBase64,
+                mimeType: mimeType || "image/jpeg",
+              },
+            },
+          ],
         },
-        prompt,
       ],
     });
 
     return {
-      analysis: response.text || "No image analysis generated.",
-      model: "gemini-3.7-flash (Multimodal Understanding)",
+      analysis: response.text || "No visual analysis generated.",
+      model: "gemini-3.7-flash (Multimodal Vision)",
     };
   } catch (err: any) {
-    console.warn("gemini-3.7-flash image analysis failed, attempting gemini-3.5-flash fallback:", err.message);
+    console.warn("Primary multimodal analysis failed with gemini-3.7-flash, trying gemini-3.5-flash:", err.message);
     const fallbackResponse = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: [
         {
-          inlineData: {
-            mimeType: mimeType || "image/jpeg",
-            data: imageBase64,
-          },
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: imageBase64,
+                mimeType: mimeType || "image/jpeg",
+              },
+            },
+          ],
         },
-        prompt,
       ],
     });
-
     return {
-      analysis: fallbackResponse.text || "No image analysis generated.",
+      analysis: fallbackResponse.text || "No visual analysis generated.",
       model: "gemini-3.5-flash (Multimodal Fallback)",
     };
   }

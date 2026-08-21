@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Move, Maximize2, RotateCcw, ZoomIn, ZoomOut, Focus } from 'lucide-react';
+import { Move, ZoomIn, ZoomOut, Focus, RotateCcw } from 'lucide-react';
 
 interface BboxMapEditorProps {
   bbox: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
@@ -12,7 +12,7 @@ type DragTarget = 'nw' | 'ne' | 'se' | 'sw' | 'n' | 's' | 'e' | 'w' | 'move' | n
 export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragTarget, setDragTarget] = useState<DragTarget>(null);
-  const [zoom, setZoom] = useState<number>(1.0); // 0.4x to 5.0x
+  const [zoom, setZoom] = useState<number>(1.0);
   
   const dragStartRef = useRef<{
     clientX: number;
@@ -198,7 +198,7 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
       <div
         ref={containerRef}
         onWheel={handleWheel}
-        className="w-full h-44 border border-[#1D3D73] bg-[#071326] overflow-hidden relative select-none rounded-sm shadow-md"
+        className="w-full h-40 border border-[#334155] bg-[#0A0F1D] overflow-hidden relative select-none rounded-xs"
       >
         {/* Background OSM map embed */}
         <iframe
@@ -207,12 +207,12 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
           frameBorder="0"
           scrolling="no"
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${viewMinLon.toFixed(4)},${viewMinLat.toFixed(4)},${viewMaxLon.toFixed(4)},${viewMaxLat.toFixed(4)}&layer=mapnik`}
-          style={{ border: 'none', pointerEvents: 'none', filter: 'invert(90%) hue-rotate(180deg) brightness(0.9) contrast(1.2)' }}
+          style={{ border: 'none', pointerEvents: 'none', filter: 'invert(90%) hue-rotate(185deg) brightness(0.85) contrast(1.15)' }}
           title="Interactive BBOX Map"
         />
 
         {/* Shaded dark mask outside the bbox */}
-        <div className="absolute inset-0 bg-[#030712]/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-[#070B14]/35 pointer-events-none" />
 
         {/* The Interactive BBOX Box */}
         <div
@@ -222,8 +222,8 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             width: `${boxWidth}%`,
             height: `${boxHeight}%`,
           }}
-          className={`absolute border-2 border-[#22D3EE] bg-[#22D3EE]/20 z-10 shadow-[0_0_12px_rgba(34,211,238,0.4)] ${
-            dragTarget === 'move' ? 'cursor-grabbing border-[#38BDF8] bg-[#22D3EE]/35' : 'cursor-grab'
+          className={`absolute border border-[#2DD4BF] bg-[#2DD4BF]/15 z-10 ${
+            dragTarget === 'move' ? 'cursor-grabbing border-[#38BDF8] bg-[#2DD4BF]/25' : 'cursor-grab'
           }`}
           onMouseDown={(e) => {
             e.stopPropagation();
@@ -235,14 +235,14 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
           }}
         >
           {/* Center Move Icon Badge */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#071326]/90 border border-[#22D3EE] text-[#22D3EE] p-1 rounded-xs shadow pointer-events-none">
-            <Move className="w-3 h-3" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0E1726]/90 border border-[#2DD4BF]/60 text-[#2DD4BF] p-0.5 rounded-xs pointer-events-none">
+            <Move className="w-2.5 h-2.5" />
           </div>
 
           {/* Corner Drag Handles */}
-          {/* NW Handle */}
+          {/* NW */}
           <div
-            className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-[#22D3EE] border-2 border-[#071326] rounded-xs shadow-md cursor-nwse-resize hover:scale-125 z-20"
+            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-[#2DD4BF] border border-[#0A0F1D] rounded-xs cursor-nwse-resize hover:scale-125 z-20"
             title={`NW: [${minLon}, ${maxLat}]`}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -254,9 +254,9 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             }}
           />
 
-          {/* NE Handle */}
+          {/* NE */}
           <div
-            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-[#22D3EE] border-2 border-[#071326] rounded-xs shadow-md cursor-nesw-resize hover:scale-125 z-20"
+            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#2DD4BF] border border-[#0A0F1D] rounded-xs cursor-nesw-resize hover:scale-125 z-20"
             title={`NE: [${maxLon}, ${maxLat}]`}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -268,9 +268,9 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             }}
           />
 
-          {/* SE Handle */}
+          {/* SE */}
           <div
-            className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-[#22D3EE] border-2 border-[#071326] rounded-xs shadow-md cursor-nwse-resize hover:scale-125 z-20"
+            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#2DD4BF] border border-[#0A0F1D] rounded-xs cursor-nwse-resize hover:scale-125 z-20"
             title={`SE: [${maxLon}, ${minLat}]`}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -282,9 +282,9 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             }}
           />
 
-          {/* SW Handle */}
+          {/* SW */}
           <div
-            className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-[#22D3EE] border-2 border-[#071326] rounded-xs shadow-md cursor-nesw-resize hover:scale-125 z-20"
+            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-[#2DD4BF] border border-[#0A0F1D] rounded-xs cursor-nesw-resize hover:scale-125 z-20"
             title={`SW: [${minLon}, ${minLat}]`}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -296,148 +296,128 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             }}
           />
 
-          {/* Edge Midpoint Drag Handles */}
-          {/* North */}
+          {/* Edge Midpoints */}
           <div
-            className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#22D3EE] border border-[#071326] rounded-xs cursor-ns-resize z-20 hover:scale-110"
+            className="absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#2DD4BF] rounded-xs cursor-ns-resize z-20"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('n', e.clientX, e.clientY);
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              handleDragStart('n', e.touches[0].clientX, e.touches[0].clientY);
-            }}
           />
-          {/* South */}
           <div
-            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#22D3EE] border border-[#071326] rounded-xs cursor-ns-resize z-20 hover:scale-110"
+            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#2DD4BF] rounded-xs cursor-ns-resize z-20"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('s', e.clientX, e.clientY);
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              handleDragStart('s', e.touches[0].clientX, e.touches[0].clientY);
-            }}
           />
-          {/* East */}
           <div
-            className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-4 bg-[#22D3EE] border border-[#071326] rounded-xs cursor-ew-resize z-20 hover:scale-110"
+            className="absolute top-1/2 -right-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#2DD4BF] rounded-xs cursor-ew-resize z-20"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('e', e.clientX, e.clientY);
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              handleDragStart('e', e.touches[0].clientX, e.touches[0].clientY);
-            }}
           />
-          {/* West */}
           <div
-            className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-4 bg-[#22D3EE] border border-[#071326] rounded-xs cursor-ew-resize z-20 hover:scale-110"
+            className="absolute top-1/2 -left-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#2DD4BF] rounded-xs cursor-ew-resize z-20"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('w', e.clientX, e.clientY);
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              handleDragStart('w', e.touches[0].clientX, e.touches[0].clientY);
-            }}
           />
         </div>
 
-        {/* Live Coordinate Badge Overlay */}
-        <div className="absolute top-1.5 left-1.5 bg-[#071326]/90 border border-[#1D3D73] text-[#38BDF8] text-[8px] px-2 py-0.5 pointer-events-none z-30 font-mono rounded-xs shadow">
-          AOI BBOX: {minLon.toFixed(3)}°E, {minLat.toFixed(3)}°N → {maxLon.toFixed(3)}°E, {maxLat.toFixed(3)}°N
+        {/* Live Coordinate Badge */}
+        <div className="absolute top-1.5 left-1.5 bg-[#0E1726]/90 border border-[#334155] text-[#94A3B8] text-[7.5px] px-2 py-0.5 pointer-events-none z-30 font-mono rounded-xs">
+          AOI: [{minLat.toFixed(3)}°N, {minLon.toFixed(3)}°E] → [{maxLat.toFixed(3)}°N, {maxLon.toFixed(3)}°E]
         </div>
 
-        {/* Floating Zoom Navigation Controls */}
-        <div className="absolute top-1.5 right-1.5 flex flex-col bg-[#071326]/90 border border-[#1D3D73] shadow-md z-30 divide-y divide-[#1D3D73] rounded-xs">
+        {/* Floating Zoom Controls */}
+        <div className="absolute top-1.5 right-1.5 flex flex-col bg-[#0E1726]/90 border border-[#334155] z-30 divide-y divide-[#334155] rounded-xs">
           <button
             type="button"
             onClick={handleZoomIn}
             disabled={disabled || zoom >= 5.0}
-            className="p-1 text-[#22D3EE] hover:bg-[#0C1E3D] transition-colors disabled:opacity-30 cursor-pointer"
+            className="p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors disabled:opacity-30 cursor-pointer"
             title="Zoom In"
           >
-            <ZoomIn className="w-3.5 h-3.5" />
+            <ZoomIn className="w-3 h-3" />
           </button>
           <button
             type="button"
             onClick={handleZoomOut}
             disabled={disabled || zoom <= 0.4}
-            className="p-1 text-[#22D3EE] hover:bg-[#0C1E3D] transition-colors disabled:opacity-30 cursor-pointer"
+            className="p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors disabled:opacity-30 cursor-pointer"
             title="Zoom Out"
           >
-            <ZoomOut className="w-3.5 h-3.5" />
+            <ZoomOut className="w-3 h-3" />
           </button>
           <button
             type="button"
             onClick={handleResetZoom}
             disabled={disabled || zoom === 1.0}
-            className={`p-1 text-[#22D3EE] hover:bg-[#0C1E3D] transition-colors cursor-pointer ${
+            className={`p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors cursor-pointer ${
               zoom === 1.0 ? 'opacity-30' : 'opacity-100'
             }`}
             title="Reset Zoom"
           >
-            <Focus className="w-3.5 h-3.5" />
+            <Focus className="w-3 h-3" />
           </button>
         </div>
       </div>
 
       {/* Numerical Coordinate Fine-Tuning Grid */}
-      <div className="bg-[#071326] border border-[#1D3D73] p-2 text-[9px] rounded-sm">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="font-bold uppercase text-[8px] text-[#38BDF8]">Bounding Coordinates (Deg)</span>
+      <div className="bg-[#0A0F1D] border border-[#1E293B] p-2 text-[8.5px] rounded-xs">
+        <div className="flex items-center justify-between mb-1">
+          <span className="font-semibold uppercase text-[7.5px] text-[#94A3B8] tracking-wider">Bounding Coordinates (WGS84)</span>
           <button
             type="button"
             onClick={handleResetBbox}
-            className="text-[8px] text-[#06D6A0] hover:underline flex items-center gap-1 cursor-pointer font-bold"
-            title="Reset to default coordinates"
+            className="text-[7.5px] text-[#2DD4BF] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+            title="Reset coordinates"
           >
-            <RotateCcw className="w-2.5 h-2.5" /> Reset Default
+            <RotateCcw className="w-2.5 h-2.5" /> Reset
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center justify-between bg-[#0C1E3D] px-2 py-1 border border-[#1D3D73] rounded-xs">
-            <span className="text-[#738CAD] text-[8px]">MIN LON:</span>
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
+            <span className="text-[#94A3B8] text-[7.5px]">MIN LON:</span>
             <input
               type="number"
               step="0.001"
               value={minLon}
               onChange={(e) => handleManualCoordChange(0, e.target.value)}
-              className="w-14 text-right font-bold text-[#F0FDFA] bg-transparent focus:outline-none"
+              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#0C1E3D] px-2 py-1 border border-[#1D3D73] rounded-xs">
-            <span className="text-[#738CAD] text-[8px]">MIN LAT:</span>
+          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
+            <span className="text-[#94A3B8] text-[7.5px]">MIN LAT:</span>
             <input
               type="number"
               step="0.001"
               value={minLat}
               onChange={(e) => handleManualCoordChange(1, e.target.value)}
-              className="w-14 text-right font-bold text-[#F0FDFA] bg-transparent focus:outline-none"
+              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#0C1E3D] px-2 py-1 border border-[#1D3D73] rounded-xs">
-            <span className="text-[#738CAD] text-[8px]">MAX LON:</span>
+          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
+            <span className="text-[#94A3B8] text-[7.5px]">MAX LON:</span>
             <input
               type="number"
               step="0.001"
               value={maxLon}
               onChange={(e) => handleManualCoordChange(2, e.target.value)}
-              className="w-14 text-right font-bold text-[#F0FDFA] bg-transparent focus:outline-none"
+              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#0C1E3D] px-2 py-1 border border-[#1D3D73] rounded-xs">
-            <span className="text-[#738CAD] text-[8px]">MAX LAT:</span>
+          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
+            <span className="text-[#94A3B8] text-[7.5px]">MAX LAT:</span>
             <input
               type="number"
               step="0.001"
               value={maxLat}
               onChange={(e) => handleManualCoordChange(3, e.target.value)}
-              className="w-14 text-right font-bold text-[#F0FDFA] bg-transparent focus:outline-none"
+              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
             />
           </div>
         </div>

@@ -1,25 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Space Mono', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Space Mono', 'Consolas', monospace;
   
-  --color-abyss: #030712;
-  --color-deep: #071326;
-  --color-card: #0c1e3d;
-  --color-panel: #132b54;
-  --color-cyan: #22d3ee;
-  --color-emerald: #06d6a0;
-  --color-azure: #0284c7;
-  --color-amber: #fbbf24;
-  --color-coral: #f43f5e;
+  /* Hydrologic Mission Control Slate Palette */
+  --color-canvas: #070B14;
+  --color-surface-base: #0A0F1D;
+  --color-surface-container: #0E1726;
+  --color-surface-elevated: #16223D;
+  --color-surface-high: #1E2D4A;
+  
+  --color-hydro-teal: #2DD4BF;
+  --color-sky-azure: #38BDF8;
+  --color-solar-amber: #F59E0B;
+  --color-desiccation-coral: #FB7185;
+  --color-emerald-safe: #10B981;
+  
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
+  --color-border-subtle: rgba(148, 163, 184, 0.18);
+  --color-border-focus: rgba(45, 212, 191, 0.4);
 }
 
 body {
-  background-color: var(--color-abyss);
-  color: #f0fdfa;
-  font-family: var(--font-inter);
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
   margin: 0;
@@ -30,83 +39,70 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Custom High-Tech HUD Glows & Glassmorphism */
-.hud-glass {
-  background: rgba(7, 19, 38, 0.75);
+/* Glassmorphic Mission Control Panels */
+.mission-card {
+  background: rgba(14, 23, 38, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 4px;
 }
 
-.hud-glass-panel {
-  background: rgba(12, 30, 61, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(2, 132, 199, 0.35);
+.mission-card:hover {
+  border-color: rgba(148, 163, 184, 0.28);
 }
 
-.hud-border-cyan {
-  border-color: rgba(34, 211, 238, 0.4);
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+.mission-card-focus {
+  border-color: rgba(45, 212, 191, 0.4);
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.08);
 }
 
-.hud-border-emerald {
-  border-color: rgba(6, 214, 160, 0.4);
-  box-shadow: 0 0 12px rgba(6, 214, 160, 0.15);
+/* Subtle Technical Outlines */
+.border-titanium {
+  border-color: rgba(148, 163, 184, 0.18);
 }
 
-.hud-border-coral {
-  border-color: rgba(244, 63, 94, 0.4);
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.15);
+.border-titanium-hover:hover {
+  border-color: rgba(148, 163, 184, 0.35);
 }
 
-.neon-glow-cyan {
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
-}
-
-.neon-glow-emerald {
-  text-shadow: 0 0 8px rgba(6, 214, 160, 0.7);
-}
-
-/* Cartographic Grid Background Pattern */
-.bg-grid-cyber {
+/* Scientific Cartographic Grid Background Pattern */
+.bg-grid-cartographic {
   background-image: 
-    linear-gradient(to right, rgba(34, 211, 238, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
-/* Radar & Pulse Animations */
-@keyframes hud-pulse {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
+/* Header Top Accent Trace */
+.header-trace-teal {
+  border-top: 2px solid #2DD4BF;
 }
 
-.animate-hud-pulse {
-  animation: hud-pulse 3s infinite ease-in-out;
+.header-trace-azure {
+  border-top: 2px solid #38BDF8;
 }
 
-@keyframes radar-sweep {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.header-trace-amber {
+  border-top: 2px solid #F59E0B;
 }
 
-.animate-radar-sweep {
-  animation: radar-sweep 6s linear infinite;
+.header-trace-coral {
+  border-top: 2px solid #FB7185;
 }
 
-/* Custom Scrollbar for Dark Dashboards */
+/* Custom Mission Control Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #071326;
+  background: #070B14;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(34, 211, 238, 0.3);
-  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 211, 238, 0.6);
+  background: rgba(45, 212, 191, 0.5);
 }

@@ -132,13 +132,13 @@ export function ImageSplitSlider({
   }, [isPlaying]);
 
   return (
-    <div className="relative w-full flex flex-col font-mono text-[11px] select-none bg-[#030712] rounded-sm overflow-hidden border border-[#1D3D73]">
+    <div className="relative w-full flex flex-col font-mono text-[11px] select-none bg-[#050810] rounded-xs overflow-hidden border border-[#334155]">
       {/* Visual Canvas Container */}
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className="relative w-full aspect-4/3 sm:aspect-16/10 bg-[#071326] cursor-ew-resize overflow-hidden"
+        className="relative w-full aspect-4/3 sm:aspect-16/10 bg-[#070B14] cursor-ew-resize overflow-hidden"
       >
         {/* Layer B (Background / Right Side) */}
         <div className="absolute inset-0 w-full h-full">
@@ -148,10 +148,10 @@ export function ImageSplitSlider({
             className="w-full h-full object-cover pointer-events-none"
           />
           {/* Label B Badge */}
-          <div className="absolute bottom-3 right-3 bg-[#071326]/90 border border-[#0284C7] text-[#F0FDFA] px-2.5 py-1 text-[10px] shadow-lg backdrop-blur-md rounded-xs">
-            <div className="font-bold uppercase tracking-wider text-[#38BDF8]">{labelB}</div>
-            {dateB && <div className="text-[8.5px] text-[#CADDAE]">{dateB}</div>}
-            {idB && <div className="text-[7px] text-[#738CAD] max-w-[140px] truncate">{idB}</div>}
+          <div className="absolute bottom-2.5 right-2.5 bg-[#0E1726]/90 border border-[#38BDF8]/60 text-[#F1F5F9] px-2 py-0.5 text-[9.5px] shadow-md backdrop-blur-md rounded-xs">
+            <div className="font-semibold uppercase tracking-wider text-[#38BDF8]">{labelB}</div>
+            {dateB && <div className="text-[8px] text-[#94A3B8]">{dateB}</div>}
+            {idB && <div className="text-[7px] text-[#64748B] max-w-[140px] truncate">{idB}</div>}
           </div>
         </div>
 
@@ -166,39 +166,39 @@ export function ImageSplitSlider({
             className="w-full h-full object-cover pointer-events-none"
           />
           {/* Label A Badge */}
-          <div className="absolute bottom-3 left-3 bg-[#071326]/90 border border-[#22D3EE] text-[#F0FDFA] px-2.5 py-1 text-[10px] shadow-lg backdrop-blur-md rounded-xs">
-            <div className="font-bold uppercase tracking-wider text-[#22D3EE]">{labelA}</div>
-            {dateA && <div className="text-[8.5px] text-[#CADDAE]">{dateA}</div>}
-            {idA && <div className="text-[7px] text-[#738CAD] max-w-[140px] truncate">{idA}</div>}
+          <div className="absolute bottom-2.5 left-2.5 bg-[#0E1726]/90 border border-[#2DD4BF]/60 text-[#F1F5F9] px-2 py-0.5 text-[9.5px] shadow-md backdrop-blur-md rounded-xs">
+            <div className="font-semibold uppercase tracking-wider text-[#2DD4BF]">{labelA}</div>
+            {dateA && <div className="text-[8px] text-[#94A3B8]">{dateA}</div>}
+            {idA && <div className="text-[7px] text-[#64748B] max-w-[140px] truncate">{idA}</div>}
           </div>
         </div>
 
         {/* The Split Divider Line & Draggable Handle */}
         <div
-          className="absolute top-0 bottom-0 w-[2px] bg-[#22D3EE] pointer-events-none z-20 shadow-[0_0_10px_#22D3EE]"
+          className="absolute top-0 bottom-0 w-[1.5px] bg-[#F1F5F9] pointer-events-none z-20 shadow-md"
           style={{ left: `${sliderPosition}%` }}
         >
-          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#071326] border-2 border-[#22D3EE] flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.6)]">
-            <ChevronsLeftRight className="w-4 h-4 text-[#22D3EE]" />
+          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-[#0E1726] border border-[#2DD4BF] flex items-center justify-center shadow-md">
+            <ChevronsLeftRight className="w-3.5 h-3.5 text-[#2DD4BF]" />
           </div>
         </div>
 
-        {/* Top HUD Telemetry Indicator */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#071326]/85 border border-[#1D3D73] px-3 py-0.5 text-[8.5px] text-[#38BDF8] backdrop-blur-sm rounded-xs pointer-events-none">
-          SWIPE COMPARISON: {sliderPosition.toFixed(0)}%
+        {/* Top Telemetry Indicator */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#0E1726]/85 border border-[#334155] px-2.5 py-0.5 text-[8px] text-[#CBD5E1] backdrop-blur-sm rounded-xs pointer-events-none font-medium">
+          SPLIT VIEW: {sliderPosition.toFixed(0)}%
         </div>
       </div>
 
       {/* Control Bar Below Image */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#071326] border-t border-[#1D3D73] text-[10px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#0A0F1D] border-t border-[#1E293B] text-[9.5px]">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPlaying((prev) => !prev)}
-            className={`px-2.5 py-1 border flex items-center gap-1.5 font-bold transition-all rounded-xs ${
+            className={`px-2 py-0.5 border flex items-center gap-1.5 font-medium transition-all rounded-xs cursor-pointer ${
               isPlaying
-                ? 'bg-[#22D3EE] text-[#030712] border-[#22D3EE] shadow-[0_0_8px_rgba(34,211,238,0.5)]'
-                : 'bg-[#0C1E3D] text-[#22D3EE] border-[#1D3D73] hover:border-[#22D3EE]'
+                ? 'bg-[#2DD4BF] text-[#042F2E] border-[#2DD4BF]'
+                : 'bg-[#131F37] text-[#2DD4BF] border-[#334155] hover:border-[#2DD4BF]'
             }`}
           >
             {isPlaying ? (
@@ -218,7 +218,7 @@ export function ImageSplitSlider({
               setIsPlaying(false);
               setSliderPosition(50);
             }}
-            className="px-2 py-1 bg-[#0C1E3D] text-[#CADDAE] border border-[#1D3D73] hover:border-[#22D3EE] flex items-center gap-1 transition-all rounded-xs"
+            className="px-2 py-0.5 bg-[#131F37] text-[#94A3B8] border border-[#334155] hover:text-[#F1F5F9] hover:border-[#94A3B8] flex items-center gap-1 transition-all rounded-xs cursor-pointer"
             title="Reset to 50/50"
           >
             <RotateCcw className="w-3 h-3" /> 50/50
@@ -227,7 +227,7 @@ export function ImageSplitSlider({
 
         {/* Position Slider Input */}
         <div className="flex items-center gap-2">
-          <span className="text-[9px] text-[#738CAD] uppercase font-bold">Split Ratio:</span>
+          <span className="text-[8.5px] text-[#94A3B8] uppercase">Ratio:</span>
           <input
             type="range"
             min="0"
@@ -237,9 +237,9 @@ export function ImageSplitSlider({
               setIsPlaying(false);
               setSliderPosition(parseFloat(e.target.value));
             }}
-            className="w-24 sm:w-36 accent-[#22D3EE] h-1.5 bg-[#0C1E3D] rounded-xs cursor-pointer"
+            className="w-24 sm:w-32 accent-[#2DD4BF] h-1 bg-[#1E293B] rounded-xs cursor-pointer"
           />
-          <span className="text-[10px] font-bold text-[#22D3EE] w-7 text-right">
+          <span className="text-[9.5px] font-semibold text-[#F1F5F9] w-6 text-right">
             {sliderPosition.toFixed(0)}%
           </span>
         </div>
