@@ -14,11 +14,11 @@ import { runLocalHydrologicalEngine } from "./rag/hydrologicalEngine.js";
  */
 export async function runPipeline(config: any) {
   const { aoi, years, waterBody, patchCount, topK } = config || {};
-  const bbox = aoi?.bbox;
+  const bbox = config?.bbox || aoi?.bbox;
 
   if (!bbox || !Array.isArray(bbox) || bbox.length !== 4) {
     throw new Error(
-      "aoi.bbox [minX, minY, maxX, maxY] is required for the local spectral pipeline."
+      "bbox [minX, minY, maxX, maxY] is required for the local spectral pipeline."
     );
   }
 
