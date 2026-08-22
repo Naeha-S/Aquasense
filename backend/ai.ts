@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { runLocalHydrologicalEngine } from "./rag/hydrologicalEngine.js";
 
 let genAIClient: GoogleGenAI | null = null;
 
@@ -497,3 +498,55 @@ Ensure your markdown text before the JSON is engaging, concise, and structured w
   }
 }
 
+/**
+ * Local 12-D spectral embedding endpoint (no cloud dependency).
+ * Returns per-epoch 12-D feature vectors, radiometric indices, and
+ * few-shot land-cover classification for the requested AOI/epochs.
+ */
+export async function generateSpectralEmbedding(data: any) {
+  const { bbox, years, waterBody, patchCount } = data || {};
+  if (!Array.isArray(bbox) || bbox.length !== 4) {
+    throw new Error("bbox [minX, minY, maxX, maxY] is required for spectral embedding.");
+  }
+  const yearsArr = years && years.length ? years : ["2019", "2025"];
+  const engine = await runLocalHydrologicalEngine(
+    { bbox: bbox as [number, number, number, number], years: yearsArr, waterBody, patchCount },
+    false
+  );
+  return {
+    encoder: engine.encoder,
+    bbox: engine.bbox,
+    bboxAreaKm2: engine.bboxAreaKm2,
+    waterBody: engine.waterBody,
+    years: engine.years,
+    perYear: engine.perYear,
+    areaStats: engine.areaStats,
+    note: "Deterministic local 12-D spectral feature extraction + few-shot classification (no cloud dependency).",
+  };
+}
+
+/**
+ * Local Hydrological RAG analysis endpoint (no cloud dependency).
+ * Runs the full in-process engine: 12-D extraction, few-shot classification,
+ * area quantification, TF-IDF retrieval, and structured synthesis.
+ */
+export async function generateLocalRagAnalysis(data: any) {
+  const { bbox, years, waterBody, patchCount, topK } = data || {};
+  if (!Array.isArray(bbox) || bbox.length !== 4) {
+    throw new Error("bbox [minX, minY, maxX, maxY] is required for local RAG analysis.");
+  }
+  const yearsArr = years && years.length ? years : ["2019", "2025"];
+  const engine = await runLocalHydrologicalEngine(
+    { bbox: bbox as [number, number, number, number], years: yearsArr, waterBody, patchCount, topK },
+    true
+  );
+  return {
+    bboxAreaKm2: engine.bboxAreaKm2,
+    waterBody: engine.waterBody,
+    years: engine.years,
+    perYear: engine.perYear,
+    areaStats: engine.areaStats,
+    retrievedChunks: engine.retrievedChunks,
+    synthesis: engine.synthesis,
+  };
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Brain, 
@@ -12,12 +12,40 @@ import {
   AlertCircle, 
   X, 
   ExternalLink, 
-  Radio,
-  Cpu,
+  Radio, 
+  Cpu, 
+  RefreshCw, 
+  Network,
+  BookOpen,
   Layers,
   ShieldCheck,
   ChevronRight
 } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+
+// 12-D spectral dimension order (matches ml/encoders/spectral_12d.ts)
+const SPECTRAL12_DIMS = [
+  'B02', 'B03', 'B04', 'B08', 'NDWI', 'MNDWI', 'NDTI', 'NDCI', 'VV', 'VH', 'ΔDEM', 'WQI',
+];
+const NORM_RANGES: Record<string, [number, number]> = {
+  B02: [0, 0.15], B03: [0, 0.2], B04: [0, 0.25], B08: [0, 0.3],
+  NDWI: [-1, 1], MNDWI: [-1, 1], NDTI: [-1, 1], NDCI: [-1, 1],
+  VV: [-30, 0], VH: [-30, 0], 'ΔDEM': [0, 40], WQI: [0, 100],
+};
+const localClamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+const CLASS_COLORS: Record<string, string> = {
+  water: '#007979',
+  wetland: '#24B1B1',
+  built_up: '#D97706',
+};
+const RAG_CATEGORY_COLORS: Record<string, string> = {
+  ramsar: '#007979',
+  cpcb: '#24B1B1',
+  who: '#D97706',
+  bio_optics: '#8B5CF6',
+  climate: '#E11D48',
+  regional: '#0D9488',
+};
 
 interface AiEcologicalInsightsProps {
   sceneData: {
@@ -48,7 +76,7 @@ export function AiEcologicalInsights({
   bathymetryData = null,
   waterQualityData = null
 }: AiEcologicalInsightsProps) {
-  const [activeTab, setActiveTab] = useState<'synthesis' | 'grounding' | 'field_photo'>('synthesis');
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'grounding' | 'field_photo' | 'local_rag'>('synthesis');
   const [synthesisMode, setSynthesisMode] = useState<'deep_reasoning' | 'search_grounded' | 'maps_grounded' | 'fast_summary'>('deep_reasoning');
   const [loading, setLoading] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -61,6 +89,11 @@ export function AiEcologicalInsights({
   const [fieldMimeType, setFieldMimeType] = useState<string>('image/jpeg');
   const [fieldAnalysis, setFieldAnalysis] = useState<string | null>(null);
   const [analyzingFieldImage, setAnalyzingFieldImage] = useState(false);
+
+  // Local RAG & 12-D Embedding state
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragData, setRagData] = useState<any>(null);
+  const [ragError, setRagError] = useState<string | null>(null);
 
   const getActiveModelDetails = () => {
     switch (synthesisMode) {
@@ -204,6 +237,49 @@ export function AiEcologicalInsights({
     }
   };
 
+  const handleRunLocalRag = async () => {
+    setRagLoading(true);
+    setRagError(null);
+    try {
+      const res = await fetch('/api/ai/local-rag-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bbox: config.bbox,
+          years: config.years,
+          waterBody: config.waterBody,
+          patchCount: 240,
+          topK: 4,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to execute local RAG engine');
+      }
+      setRagData(data);
+    } catch (e: any) {
+      setRagError(e.message || 'Error running local RAG');
+    } finally {
+      setRagLoading(false);
+    }
+  };
+
+  // Build Radar Chart Data from 12-D Features
+  const radarChartData = React.useMemo(() => {
+    if (!ragData?.perYear || ragData.perYear.length === 0) return [];
+    return SPECTRAL12_DIMS.map((dim, idx) => {
+      const [lo, hi] = NORM_RANGES[dim] || [-1, 1];
+      const entry: Record<string, any> = { dimension: dim };
+      for (const py of ragData.perYear) {
+        const raw = py.feature12D[idx] ?? 0;
+        const norm = localClamp((raw - lo) / (hi - lo), 0, 1) * 100;
+        entry[py.year] = Math.round(norm);
+        entry[`${py.year}_raw`] = raw;
+      }
+      return entry;
+    });
+  }, [ragData]);
+
   return (
     <div className="bg-white/95 border border-[#007979]/20 shadow-md font-mono text-[11px] rounded-xs overflow-hidden header-trace-teal">
       
@@ -211,7 +287,7 @@ export function AiEcologicalInsights({
       <div className="bg-[#007979] text-[#FFF0E4] px-3 py-2 flex items-center justify-between border-b border-[#007979]/20">
         <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[10px]">
           <Brain className="w-3.5 h-3.5 text-[#24B1B1]" />
-          <span>Gemini Ecological Intelligence</span>
+          <span>Hydrological AI Intelligence</span>
         </div>
         <div className="flex items-center gap-1.5">
           {isSarPenetrating && (
@@ -220,7 +296,7 @@ export function AiEcologicalInsights({
             </span>
           )}
           <span className="text-[7.5px] px-1.5 py-0.2 bg-[#052626] border border-[#24B1B1]/30 text-[#24B1B1] font-bold rounded-xs">
-            4-MODEL SUITE
+            GEMINI + RAG
           </span>
         </div>
       </div>
@@ -230,54 +306,72 @@ export function AiEcologicalInsights({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[8.5px]">
             <Cpu className="w-3 h-3 text-[#007979]" />
-            <span className="text-[#537575] uppercase">Target Model:</span>
-            <span className="font-bold text-[#082424]">{activeModel.name}</span>
+            <span className="text-[#537575] uppercase">Engine:</span>
+            <span className="font-bold text-[#082424]">
+              {activeTab === 'local_rag' ? 'Local 12-D Spectral Extractor + RAG' : activeModel.name}
+            </span>
           </div>
-          <span className={`text-[7.5px] px-1.5 py-0.2 font-bold rounded-xs border ${activeModel.badgeColor}`}>
-            {activeModel.tag}
+          <span className={`text-[7.5px] px-1.5 py-0.2 font-bold rounded-xs border ${
+            activeTab === 'local_rag' ? 'bg-[#007979]/10 border-[#007979]/40 text-[#007979]' : activeModel.badgeColor
+          }`}>
+            {activeTab === 'local_rag' ? 'SOVEREIGN / NO CLOUD' : activeModel.tag}
           </span>
         </div>
         <div className="flex items-center justify-between text-[7.5px] text-[#537575]">
-          <span>Role: {activeModel.role}</span>
-          <span>Latency: <strong className="text-[#007979] font-bold">{activeModel.latency}</strong></span>
+          <span>Capability: {activeTab === 'local_rag' ? 'Few-Shot Classifier & Ramsar Knowledge Store' : activeModel.role}</span>
+          <span>Latency: <strong className="text-[#007979] font-bold">{activeTab === 'local_rag' ? '<35ms' : activeModel.latency}</strong></span>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-[#007979]/15 bg-[#FFF8F2]">
+      <div className="flex border-b border-[#007979]/15 bg-[#FFF8F2] text-[8px]">
         <button
           onClick={() => setActiveTab('synthesis')}
-          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-1.5 uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeTab === 'synthesis'
               ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
               : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
-          <Brain className="w-3 h-3" /> Synthesis
+          <Brain className="w-2.5 h-2.5" /> Synthesis
         </button>
+
         <button
           onClick={() => setActiveTab('grounding')}
-          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-1.5 uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeTab === 'grounding'
               ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
               : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
-          <Search className="w-3 h-3" /> Grounding
+          <Search className="w-2.5 h-2.5" /> Grounding
         </button>
+
         <button
           onClick={() => setActiveTab('field_photo')}
-          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-1.5 uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeTab === 'field_photo'
               ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
               : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
-          <ImageIcon className="w-3 h-3" /> Drone Vision
+          <ImageIcon className="w-2.5 h-2.5" /> Drone Vision
+        </button>
+
+        <button
+          onClick={() => setActiveTab('local_rag')}
+          className={`flex-1 py-1.5 px-1.5 uppercase font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            activeTab === 'local_rag'
+              ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
+              : 'text-[#007979] font-bold hover:bg-[#FFE0C5]/40'
+          }`}
+        >
+          <BookOpen className="w-2.5 h-2.5 text-[#24B1B1]" /> 12-D &amp; RAG
         </button>
       </div>
 
       <div className="p-3 space-y-2.5">
+        
         {/* Tab 1: Synthesis Modes */}
         {activeTab === 'synthesis' && (
           <div className="space-y-2">
@@ -405,7 +499,7 @@ export function AiEcologicalInsights({
                   />
                   <button
                     onClick={() => setFieldImageBase64(null)}
-                    className="text-[7.5px] text-[#E11D48] hover:underline cursor-pointer"
+                    className="text-[7.5px] text-[#E11D48] hover:underline cursor-pointer font-bold"
                   >
                     Remove Photo
                   </button>
@@ -437,6 +531,131 @@ export function AiEcologicalInsights({
                 </>
               )}
             </button>
+          </div>
+        )}
+
+        {/* Tab 4: LOCAL 12-D SPECTRAL EMBEDDING & RAG KNOWLEDGE RETRIEVAL */}
+        {activeTab === 'local_rag' && (
+          <div className="space-y-2.5 text-[8.5px]">
+            <div className="flex items-center justify-between bg-[#FFF8F2] p-2 border border-[#007979]/20 rounded-xs">
+              <div>
+                <div className="font-bold text-[#082424] text-[9px] flex items-center gap-1">
+                  <BookOpen className="w-3 h-3 text-[#007979]" />
+                  Sovereign Hydrological Engine
+                </div>
+                <div className="text-[7.5px] text-[#537575]">
+                  12-D Tensor Extractor + Logistic Regression Few-Shot + Ramsar/CPCB RAG
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRunLocalRag}
+                disabled={ragLoading}
+                className="px-2 py-1 bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] rounded-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-30 shadow-xs"
+              >
+                {ragLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 text-[#24B1B1]" />}
+                <span>Execute Local Pipeline</span>
+              </button>
+            </div>
+
+            {ragError && (
+              <div className="p-2 bg-[#E11D48]/10 border border-[#E11D48]/30 rounded-xs text-[#E11D48] text-[7.5px] flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{ragError}</span>
+              </div>
+            )}
+
+            {ragData && (
+              <div className="space-y-2">
+                
+                {/* 1. Radar Chart of 12-D Signature */}
+                <div className="bg-[#FFF8F2] p-2 border border-[#007979]/20 rounded-xs space-y-1">
+                  <div className="flex items-center justify-between text-[7.5px] text-[#537575]">
+                    <span className="font-bold text-[#082424] uppercase">12-D Radiometric Vector Profile</span>
+                    <span className="text-[#007979] font-bold">Normalized 0-100</span>
+                  </div>
+
+                  <div className="h-36 w-full pt-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarChartData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
+                        <PolarGrid stroke="#007979" strokeOpacity={0.2} />
+                        <PolarAngleAxis dataKey="dimension" tick={{ fill: '#082424', fontSize: 7, fontFamily: 'monospace' }} />
+                        <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                        {ragData.perYear.map((py: any, i: number) => (
+                          <Radar
+                            key={py.year}
+                            name={py.year}
+                            dataKey={py.year}
+                            stroke={i === 0 ? '#007979' : '#24B1B1'}
+                            fill={i === 0 ? '#007979' : '#24B1B1'}
+                            fillOpacity={0.25}
+                            strokeWidth={1.8}
+                          />
+                        ))}
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 2. Few-Shot Land Cover Classification Breakdown */}
+                <div className="bg-[#FFF8F2] p-2 border border-[#007979]/20 rounded-xs space-y-1.5">
+                  <div className="text-[7.5px] font-bold text-[#082424] uppercase">Few-Shot Land Cover Distribution:</div>
+                  <div className="space-y-1">
+                    {ragData.perYear.map((py: any) => (
+                      <div key={py.year} className="space-y-0.5 border-b border-[#007979]/10 pb-1">
+                        <div className="flex items-center justify-between text-[7.5px]">
+                          <span className="font-bold text-[#007979]">Epoch {py.year}</span>
+                          <span className="text-[#537575]">Dominant: <strong className="text-[#082424] uppercase">{py.classification.dominant}</strong></span>
+                        </div>
+                        <div className="flex gap-1 text-[7px]">
+                          {Object.entries(py.classification.classes).map(([cls, info]: any) => (
+                            <div key={cls} className="flex-1 bg-white p-1 rounded-xs border border-[#007979]/15">
+                              <div className="text-[#537575] uppercase">{cls}</div>
+                              <div className="font-bold text-[#082424]">{(info.fraction * 100).toFixed(1)}%</div>
+                              <div className="text-[6.5px] text-[#537575]">{info.km2.toFixed(2)} km²</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Top-K RAG Knowledge Chunks */}
+                {ragData.retrievedChunks && ragData.retrievedChunks.length > 0 && (
+                  <div className="bg-[#FFF8F2] p-2 border border-[#007979]/20 rounded-xs space-y-1">
+                    <div className="flex items-center justify-between text-[7.5px] text-[#537575]">
+                      <span className="font-bold text-[#082424] uppercase">RAG Statutory Grounding Chunks:</span>
+                      <span className="text-[#007979] font-bold">Cosine Rank</span>
+                    </div>
+                    <div className="space-y-1">
+                      {ragData.retrievedChunks.map((chunk: any) => (
+                        <div key={chunk.id} className="p-1.5 bg-white rounded-xs border border-[#007979]/15 space-y-0.5">
+                          <div className="flex items-center justify-between text-[7px]">
+                            <span className="font-bold text-[#007979] uppercase">{chunk.title}</span>
+                            <span className="px-1 rounded-xs text-[6.5px] font-bold bg-[#007979]/10 text-[#007979] uppercase">
+                              {chunk.category} ({(chunk.score * 100).toFixed(0)}% match)
+                            </span>
+                          </div>
+                          <p className="text-[7.5px] text-[#082424] leading-relaxed font-sans">{chunk.text}</p>
+                          <div className="text-[6.5px] text-[#537575]">Source: {chunk.source}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Structured Synthesis Report */}
+                {ragData.synthesis && (
+                  <div className="bg-[#FFF8F2] p-2 border border-[#007979]/20 rounded-xs space-y-1">
+                    <div className="text-[7.5px] font-bold text-[#007979] uppercase">Sovereign Assessment Report:</div>
+                    <div className="text-[8px] leading-relaxed whitespace-pre-wrap text-[#082424] font-sans">
+                      {ragData.synthesis}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

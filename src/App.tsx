@@ -127,6 +127,14 @@ const AI_MODEL_NODES = {
     status: 'INFERENCE READY'
   },
   gemini: {
+    name: 'Google Gemini 3.7 Flash',
+    modelId: 'gemini-3.7-flash-thinking',
+    framework: 'Google GenAI SDK (CoT Reasoning)',
+    role: 'Deep Multi-Sensor Ecological Synthesis & Ramsar Policy Engine',
+    status: 'ONLINE (32k Tokens)'
+  }
+};
+
 export const VIEW_MODE_EXPLANATIONS: Record<string, {
   name: string;
   badge: string;
@@ -1281,120 +1289,147 @@ export default function App() {
           {/* ============================================================ */}
           <div className={`${isSidebarDocked ? 'lg:col-span-6' : 'lg:col-span-8'} flex flex-col gap-3 transition-all duration-300`}>
             
-            {/* Top View Mode Bar */}
+            {/* Top View Mode Bar (Streamlined Core + Bio-Optics Selector) */}
             <div className="bg-white/95 border border-[#007979]/20 p-2 rounded-xs shadow-md flex flex-wrap items-center justify-between gap-2">
               
-              {/* View Mode Buttons */}
-              <div className="flex flex-wrap gap-1 font-mono text-[7.5px]">
+              {/* 5 Core Primary Mode Buttons */}
+              <div className="flex flex-wrap items-center gap-1 font-mono text-[7.5px]">
                 <button
                   onClick={() => setMapView('split')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer font-bold ${
                     mapView === 'split'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
                       : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
                   }`}
                 >
-                  <SlidersHorizontal className="w-2.5 h-2.5 text-[#24B1B1]" /> TRUE COLOR
+                  <SlidersHorizontal className="w-2.5 h-2.5 text-[#24B1B1]" /> TRUE COLOR SWIPE
                 </button>
 
                 <button
                   onClick={() => setMapView('ndwi_split')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer font-bold ${
                     mapView === 'ndwi_split'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
                       : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
                   }`}
                 >
-                  <Palette className="w-2.5 h-2.5 text-[#24B1B1]" /> NDWI
-                </button>
-
-                <button
-                  onClick={() => setMapView('bathymetry')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                    mapView === 'bathymetry'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
-                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
-                  }`}
-                >
-                  <Waves className="w-2.5 h-2.5 text-[#24B1B1]" /> 3D DEPTH
-                </button>
-
-                <button
-                  onClick={() => setMapView('turbidity')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                    mapView === 'turbidity'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
-                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
-                  }`}
-                >
-                  <Droplets className="w-2.5 h-2.5 text-[#EAB308]" /> TURBIDITY
-                </button>
-
-                <button
-                  onClick={() => setMapView('chlorophyll')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                    mapView === 'chlorophyll'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
-                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
-                  }`}
-                >
-                  <Activity className="w-2.5 h-2.5 text-[#10B981]" /> CHL-A
-                </button>
-
-                <button
-                  onClick={() => setMapView('cdom')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                    mapView === 'cdom'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
-                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
-                  }`}
-                >
-                  <Layers className="w-2.5 h-2.5 text-[#F59E0B]" /> CDOM
+                  <Palette className="w-2.5 h-2.5 text-[#24B1B1]" /> NDWI WATER INDEX
                 </button>
 
                 <button
                   onClick={() => setMapView('sar_vv')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer font-bold ${
                     mapView === 'sar_vv'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
                       : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
                   }`}
                 >
-                  <Radar className="w-2.5 h-2.5 text-[#24B1B1]" /> SAR RADAR
+                  <Radar className="w-2.5 h-2.5 text-[#24B1B1]" /> SAR RADAR (C-BAND)
                 </button>
 
                 <button
                   onClick={() => setMapView('fused_allweather')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer font-bold ${
                     mapView === 'fused_allweather'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
                       : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
                   }`}
                 >
-                  <Zap className="w-2.5 h-2.5 text-[#F59E0B]" /> FUSION
+                  <Zap className="w-2.5 h-2.5 text-[#F59E0B]" /> ALL-WEATHER FUSION
                 </button>
 
                 <button
                   onClick={() => setMapView('diff')}
-                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer font-bold ${
                     mapView === 'diff'
-                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
                       : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
                   }`}
                 >
-                  <Activity className="w-2.5 h-2.5 text-[#FB7185]" /> DIFF
+                  <Activity className="w-2.5 h-2.5 text-[#FB7185]" /> CHANGE DELTA
                 </button>
+
+                {/* Secondary Bio-Optics & 3D Layer Selector Dropdown */}
+                <div className="relative inline-block ml-1">
+                  <select
+                    value={['bathymetry', 'turbidity', 'chlorophyll', 'cdom'].includes(mapView) ? mapView : ''}
+                    onChange={(e) => {
+                      if (e.target.value) setMapView(e.target.value as MapView);
+                    }}
+                    className={`px-2 py-1 rounded-xs border font-mono text-[7.5px] font-bold cursor-pointer transition-all ${
+                      ['bathymetry', 'turbidity', 'chlorophyll', 'cdom'].includes(mapView)
+                        ? 'bg-[#007979] text-[#FFF0E4] border-[#007979] shadow-xs'
+                        : 'bg-[#FFF8F2] text-[#007979] border-[#007979]/30 hover:border-[#24B1B1]'
+                    }`}
+                  >
+                    <option value="" disabled>🔬 BIO-OPTICS &amp; 3D LAYERS ▾</option>
+                    <option value="bathymetry">🌊 3D Hydro-Depth &amp; Volume ($m^3$)</option>
+                    <option value="turbidity">💧 NDTI Turbidity &amp; TSS ($NTU$)</option>
+                    <option value="chlorophyll">🌱 Chlorophyll-a &amp; Algal Bloom</option>
+                    <option value="cdom">🍂 CDOM Organic Carbon</option>
+                  </select>
+                </div>
               </div>
 
-              {/* LUT Selector Mini Trigger */}
-              <div className="w-36">
-                <ColorRampSelector
-                  selectedRamp={colorRamp}
-                  onChange={handleRampChange}
-                  disabled={currentStep === 'processing'}
-                />
+              {/* LUT Selector & Mode Physics Toggle Button */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowModeExplanation(!showModeExplanation)}
+                  className={`px-2 py-1 text-[7.5px] font-mono font-bold rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    showModeExplanation
+                      ? 'bg-[#007979] text-[#FFF0E4] border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                  title="Toggle scientific explanation and remote sensing physics HUD"
+                >
+                  <span>ℹ️ MODE PHYSICS</span>
+                  {showModeExplanation ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                </button>
+
+                <div className="w-32">
+                  <ColorRampSelector
+                    selectedRamp={colorRamp}
+                    onChange={handleRampChange}
+                    disabled={currentStep === 'processing'}
+                  />
+                </div>
               </div>
             </div>
+
+            {/* INTERACTIVE HIGH-LEVEL EXPLANATION & PHYSICAL SENSOR HUD */}
+            {showModeExplanation && VIEW_MODE_EXPLANATIONS[mapView] && (
+              <div className="bg-white/95 border-l-4 border-l-[#007979] border-y border-r border-[#007979]/20 p-2.5 rounded-xs shadow-xs font-mono text-[8px] space-y-1 animate-slide-in">
+                <div className="flex flex-wrap items-center justify-between gap-1 border-b border-[#007979]/15 pb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-[#082424] text-[9.5px]">
+                      {VIEW_MODE_EXPLANATIONS[mapView].name}
+                    </span>
+                    <span className={`text-[7px] px-1.5 py-0.2 rounded-xs border font-bold uppercase ${VIEW_MODE_EXPLANATIONS[mapView].badgeColor}`}>
+                      {VIEW_MODE_EXPLANATIONS[mapView].badge}
+                    </span>
+                  </div>
+                  <div className="text-[7.5px] text-[#537575] font-semibold flex items-center gap-2">
+                    <span><strong>Sensor:</strong> {VIEW_MODE_EXPLANATIONS[mapView].sensor}</span>
+                    <span>•</span>
+                    <span className="text-[#007979] font-bold"><strong>Formula:</strong> {VIEW_MODE_EXPLANATIONS[mapView].equation}</span>
+                  </div>
+                </div>
+
+                <div className="pt-0.5 space-y-1 text-[#082424] font-sans text-[8.5px] leading-relaxed">
+                  <div className="font-bold text-[#007979] flex items-start gap-1">
+                    <span className="font-mono text-[#24B1B1]">▸</span>
+                    <span><strong>Mini Summary:</strong> {VIEW_MODE_EXPLANATIONS[mapView].miniSummary}</span>
+                  </div>
+                  <div className="text-[#1F4B4B] pl-3">
+                    <strong>Physical Principle:</strong> {VIEW_MODE_EXPLANATIONS[mapView].highLevelExplanation}
+                  </div>
+                  <div className="text-[#537575] pl-3 text-[8px]">
+                    <strong>Diagnostic Application:</strong> {VIEW_MODE_EXPLANATIONS[mapView].diagnosticUse}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Main Visual Observatory Stage (High-Contrast Dark Canvas) */}
             <div className="relative flex-1 bg-[#061717] border-2 border-[#007979]/30 rounded-xs shadow-xl overflow-hidden flex flex-col items-center justify-center min-h-[440px]">

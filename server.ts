@@ -3,7 +3,13 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./backend/pipeline.js";
-import { generateEcologicalAnalysis, analyzeFieldImage, chatWithHydrologist } from "./backend/ai.js";
+import { 
+  generateEcologicalAnalysis, 
+  analyzeFieldImage, 
+  chatWithHydrologist, 
+  generateSpectralEmbedding, 
+  generateLocalRagAnalysis 
+} from "./backend/ai.js";
 
 async function startServer() {
   const app = express();
@@ -78,13 +84,37 @@ async function startServer() {
     }
   });
 
+  // API Route for Local 12-D Spectral Embedding (deterministic, no cloud)
+  app.post("/api/ai/spectral-embedding", async (req, res) => {
+    try {
+      const result = await generateSpectralEmbedding(req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Spectral Embedding Error:", error);
+      res.status(400).json({ error: error.message || "Failed to generate spectral embedding" });
+    }
+  });
+
+  // API Route for Local Hydrological RAG Analysis (in-memory vector retrieval + synthesis)
+  app.post("/api/ai/local-rag-analysis", async (req, res) => {
+    try {
+      const result = await generateLocalRagAnalysis(req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Local RAG Analysis Error:", error);
+      res.status(400).json({ error: error.message || "Failed to run local RAG analysis" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("[SERVER] Initializing Vite middleware...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+    console.log("[SERVER] Vite middleware initialized.");
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -94,11 +124,10 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`AquaSense Planetary Computer running on http://localhost:${PORT}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error("Fatal error starting server:", err);
-  process.exit(1);
+  console.error("FATAL server startup error:", err);
 });
