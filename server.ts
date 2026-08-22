@@ -3,7 +3,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./backend/pipeline.js";
-import { generateEcologicalAnalysis, analyzeFieldImage } from "./backend/ai.js";
+import { generateEcologicalAnalysis, analyzeFieldImage, chatWithHydrologist } from "./backend/ai.js";
 
 async function startServer() {
   const app = express();
@@ -64,6 +64,17 @@ async function startServer() {
     } catch (error: any) {
       console.error("Image Analysis Error:", error);
       res.status(500).json({ error: error.message || "Failed to analyze image" });
+    }
+  });
+
+  // API Route for Interactive Hydrological Chatbot / Natural Language Copilot
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const result = await chatWithHydrologist(req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("AI Chat Error:", error);
+      res.status(500).json({ error: error.message || "Failed to process chat query" });
     }
   });
 

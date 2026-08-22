@@ -309,19 +309,28 @@ AquaSense integrates Google's latest Gemini models via `@google/genai` to provid
 
 ### Multimodal Field & Drone Photo Ground-Truthing
 - **Input**: Base64-encoded field photo, drone capture, or high-resolution aerial image.
-- **Analysis**:
+- **Analysis**:-
   - Surface water presence and clarity.
   - Algae, eutrophication, or invasive hyacinth mats.
   - Mangrove and marshland vegetation health.
   - Human encroachment indicators.
   - Estimated few-shot land-cover confidence breakdown.
 
+### Natural Language Hydrological Chatbot & Dynamic Chart Generator (`gemini-3.7-flash`)
+- **Capability**: Conversational natural language interface for water bodies worldwide.
+- **Entity & Coordinate Parsing**: Extracts lake names (e.g. *Pallikaranai*, *Chembarambakkam*, *Chilika*, *Lake Mead*), resolves spatial bounding boxes ($\text{BBOX}$), and extracts comparison years (e.g. *2015 vs 2016*).
+- **Inline Dynamic Chart Generation**: Emits structured action payloads that render:
+  - Surface water comparison bar charts ($\text{km}^2$ for $T_0$ vs $T_1$, with Gain/Loss classification).
+  - Multi-year longitudinal trajectory trendlines.
+  - KPI delta cards (Baseline Area, Target Area, Absolute Delta $\text{km}^2$, Relative $\%$, and Severity Index).
+- **One-Click Observatory Synchronization**: Allows users to click `"⚡ Apply to Main Map & Run Satellite STAC Ingestion"`, automatically updating the main cartographic observatory and fetching multi-spectral & SAR rasters.
+
 ### Resilient Model Fallback Hierarchy
 
 To ensure 99.9% uptime during high API traffic, all endpoints implement automatic fallback cascades:
 
 ```
-[Primary: gemini-3.7-flash] ──(if rate limit / error)──► [Fallback: gemini-3.5-flash] ──► [Fallback: gemini-3.1-flash-lite]
+[Primary: gemini-3.7-flash] ──(if rate limit / error)──► [Fallback: gemini-3.5-flash] ──► [Fallback: Deterministic Kernel Fallback]
 ```
 
 ---
@@ -440,7 +449,77 @@ This export guarantees that environmental research, carbon credit audits, and le
 
 ---
 
-## 10. Future Directions & Extensibility
+## 10. 3D Volumetric Water Estimation & Bio-Optical Water Quality
+
+AquaSense extends classical 2D surface cartography into physical 3D storage calculations and multispectral bio-optical water quality sensing:
+
+### 1. 3D Volumetric Water Estimation ($m^3$ & MCM)
+
+Rather than solely quantifying 2D surface footprint ($A \text{ km}^2$), AquaSense integrates Digital Elevation Models (Copernicus DEM GLO-30 / SRTM) with parabolic bathymetric basin geometry to calculate exact retention volume ($V$ in cubic meters $m^3$ and Million Cubic Meters MCM):
+
+$$\text{Hypsometric Area-Elevation Profile: } A(h) = A_{\text{surface}} \cdot \left(\frac{h - h_{\text{bed}}}{h_{\text{max}} - h_{\text{bed}}}\right)^\alpha$$
+
+$$\text{Continuous Volumetric Integration: } V(h) = \int_{h_{\text{bed}}}^h A(z) dz \approx \sum_{i=1}^{N} \frac{1}{3}\left(A_i + \sqrt{A_i A_{i+1}} + A_{i+1}\right)\Delta h$$
+
+```
+   Surface Water Level (1.0h) ──────────────────────────  A(h_max) [Full Retention]
+                               \                      /
+   Mid Storage Level (0.50h)    \────────────────────/   A(0.5h) [Volume: 48%]
+                                 \                  /
+   Littoral Bed (0.0h)            \────────────────/     A(0.0h) [Bed Core]
+```
+
+- **Littoral Wetland Strata (0 - 2m)**: Highly active biological fringe and seasonal marsh flooding.
+- **Submerged Channel Strata (2 - 5m)**: Primary hydrological transport and ingress corridors.
+- **Deep Storage Core (5m+)**: Permanent reservoir volume crucial for municipal drought resilience.
+
+---
+
+### 2. Bio-Optical Spectral Water Quality
+
+AquaSense computes 3 core optical indices from Sentinel-2 MSI Bottom-Of-Atmosphere reflectance bands to assess aquatic ecosystem health:
+
+#### A. Turbidity & Total Suspended Solids (TSS) via NDTI
+Normalized Difference Turbidity Index (Lacaux et al., 2007) isolates sediment backscattering in the red spectrum against green:
+
+$$\text{NDTI} = \frac{\rho_{\text{Red}} - \rho_{\text{Green}}}{\rho_{\text{Red}} + \rho_{\text{Green}}} = \frac{B04 - B03}{B04 + B03}$$
+
+$$\text{Turbidity (NTU)} = 18.5 \cdot \exp(2.8 \cdot \text{NDTI}) \qquad \text{TSS (mg/L)} \approx 1.78 \times \text{Turbidity (NTU)}$$
+
+- **Clear Aquatic Basins**: $< 5\text{ NTU}$ (NDTI $< -0.15$)
+- **Moderate Suspended Silt**: $5 \text{ to } 25\text{ NTU}$
+- **Severe Runoff / Soil Erosion Plumes**: $> 60\text{ NTU}$ (NDTI $> +0.25$)
+
+#### B. Chlorophyll-a & Algal Bloom Risk (Eutrophication)
+Normalized Difference Chlorophyll Index (NDCI; Mishra & Mishra, 2012) leverages the Sentinel-2 Red-Edge band ($B05 \approx 705\text{ nm}$) relative to the chlorophyll-a absorption trough in Red ($B04 \approx 665\text{ nm}$):
+
+$$\text{NDCI} = \frac{B05 - B04}{B05 + B04} \qquad \text{Chl-a } (\mu\text{g/L}) = 14.039 + 86.11 \cdot \text{NDCI} + 74.49 \cdot \text{NDCI}^2$$
+
+$$\text{Carlson Trophic State Index (TSI)} = 9.81 \cdot \ln(\text{Chl-a}) + 30.6$$
+
+| Trophic State | Chl-a Range | TSI Score | Ecosystem Implication |
+|---|---|---|---|
+| **Oligotrophic** | $< 2.5\,\mu\text{g/L}$ | $< 40$ | Clean, low nutrient loading |
+| **Mesotrophic** | $2.5 - 8\,\mu\text{g/L}$ | $40 - 50$ | Moderate biological productivity |
+| **Eutrophic** | $8 - 25\,\mu\text{g/L}$ | $50 - 65$ | High nutrient loading, microalgae bloom risk |
+| **Hypertrophic** | $> 25\,\mu\text{g/L}$ | $> 65$ | Severe cyanobacteria scum, hypoxia & fish kill risk |
+
+#### C. Colored Dissolved Organic Matter (CDOM)
+Bio-optical absorption coefficient ($a_{\text{cdom}}(440)\text{ m}^{-1}$) is determined via blue-to-green reflectance ratios, tracing dissolved humic matter and peat tannins draining from wetland catchments:
+
+$$a_{\text{cdom}}(440) = 1.8 \cdot \left(\frac{B02}{B03}\right)^{-1.25}\text{ m}^{-1}$$
+
+#### D. Comprehensive Water Quality Index (WQI)
+AquaSense aggregates these bio-optical indices into a unified 0–100 ecological score:
+$$\text{WQI} = 100 - \left[\text{Penalty}_{\text{Turbidity}} + \text{Penalty}_{\text{Chl-a}} + \text{Penalty}_{\text{CDOM}}\right]$$
+- **$90 - 100$ (EXCELLENT)**: Pristine drinking and ecological standard.
+- **$75 - 89$ (GOOD)**: Healthy wetland biological balance.
+- **$50 - 74$ (MODERATE)**: Mild nutrient or silt runoff enrichment.
+- **$< 50$ (IMPAIRED / CRITICAL)**: Severe eutrophication or heavy sediment degradation.
+
+---
+
+## 11. Future Directions & Extensibility
 
 1. **Synthetic Aperture Radar (SAR) Fusion**: Incorporate **Sentinel-1 C-Band SAR** data to penetrate heavy cloud cover during monsoon storms.
 2. **Thermal Water Quality Monitoring**: Integrate **Landsat-8/9 Thermal Infrared Sensor (TIRS)** for surface water temperature anomaly tracking.

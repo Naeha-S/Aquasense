@@ -10,7 +10,7 @@ export interface ColorRampStop {
   b: number;
 }
 
-export type ColorRampId = 'viridis' | 'magma' | 'blue-red' | 'hydro' | 'turbo' | 'plasma';
+export type ColorRampId = 'viridis' | 'magma' | 'blue-red' | 'hydro' | 'turbo' | 'plasma' | 'bathymetry' | 'turbidity' | 'chlorophyll' | 'cdom';
 
 export interface ColorRampDefinition {
   id: ColorRampId;
@@ -104,6 +104,62 @@ export const COLOR_RAMPS: Record<ColorRampId, ColorRampDefinition> = {
       { pos: 0.5, r: 177, g: 42, b: 144 },
       { pos: 0.75, r: 225, g: 100, b: 98 },
       { pos: 1.0, r: 240, g: 249, b: 33 }
+    ]
+  },
+  bathymetry: {
+    id: 'bathymetry',
+    name: 'Bathymetric Depth',
+    category: '3D Topography',
+    description: 'Underwater depth gradient (Shallow Cyan → Submerged Azure → Deep Navy Abyssal)',
+    cssGradient: 'linear-gradient(to right, #a5f3fc, #38bdf8, #0284c7, #1e3a8a, #030712)',
+    stops: [
+      { pos: 0.0, r: 165, g: 243, b: 252 }, // 0m shoreline
+      { pos: 0.25, r: 56, g: 189, b: 248 },
+      { pos: 0.5, r: 2, g: 132, b: 199 },
+      { pos: 0.75, r: 30, g: 58, b: 138 },
+      { pos: 1.0, r: 3, g: 7, b: 18 }       // Deep bed
+    ]
+  },
+  turbidity: {
+    id: 'turbidity',
+    name: 'NDTI Turbidity / TSS',
+    category: 'Water Quality',
+    description: 'Suspended sediment loading (Clear Teal → Mild Silt Amber → Heavy Turbid Brown)',
+    cssGradient: 'linear-gradient(to right, #06b6d4, #3b82f6, #eab308, #d97706, #78350f)',
+    stops: [
+      { pos: 0.0, r: 6, g: 182, b: 212 },   // Clear water (< 5 NTU)
+      { pos: 0.25, r: 59, g: 130, b: 246 },
+      { pos: 0.5, r: 234, g: 179, b: 8 },   // Moderate suspended sediment
+      { pos: 0.75, r: 217, g: 119, b: 6 },
+      { pos: 1.0, r: 120, g: 53, b: 15 }    // High silt / runoff plume (> 60 NTU)
+    ]
+  },
+  chlorophyll: {
+    id: 'chlorophyll',
+    name: 'Chlorophyll-a & Algae',
+    category: 'Water Quality',
+    description: 'Algal bloom risk & eutrophication (Clear Blue → Mesotrophic Emerald → Severe Bloom Red)',
+    cssGradient: 'linear-gradient(to right, #0284c7, #10b981, #84cc16, #eab308, #ef4444)',
+    stops: [
+      { pos: 0.0, r: 2, g: 132, b: 199 },   // Oligotrophic (Clear water)
+      { pos: 0.25, r: 16, g: 185, b: 129 }, // Mesotrophic
+      { pos: 0.5, r: 132, g: 204, b: 22 },  // Eutrophic algae
+      { pos: 0.75, r: 234, g: 179, b: 8 },  // High bloom risk
+      { pos: 1.0, r: 239, g: 68, b: 68 }    // Hypertrophic / Toxic scum warning
+    ]
+  },
+  cdom: {
+    id: 'cdom',
+    name: 'CDOM Organic Carbon',
+    category: 'Water Quality',
+    description: 'Colored Dissolved Organic Matter (Low Cyan → Moderate Gold → High Peat Tea Brown)',
+    cssGradient: 'linear-gradient(to right, #22d3ee, #60a5fa, #f59e0b, #b45309, #451a03)',
+    stops: [
+      { pos: 0.0, r: 34, g: 211, b: 238 },
+      { pos: 0.25, r: 96, g: 165, b: 250 },
+      { pos: 0.5, r: 245, g: 158, b: 11 },  // Humic organic runoff
+      { pos: 0.75, r: 180, g: 83, b: 9 },
+      { pos: 1.0, r: 69, g: 26, b: 3 }      // Dense wetland peat tannin
     ]
   }
 };

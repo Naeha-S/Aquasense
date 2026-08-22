@@ -1,5 +1,23 @@
 import React, { useState } from 'react';
-import { Sparkles, Brain, Search, MapPin, Zap, Image as ImageIcon, Upload, Loader2, CheckCircle2, AlertCircle, X, ExternalLink, Radio } from 'lucide-react';
+import { 
+  Sparkles, 
+  Brain, 
+  Search, 
+  MapPin, 
+  Zap, 
+  Image as ImageIcon, 
+  Upload, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle, 
+  X, 
+  ExternalLink, 
+  Radio,
+  Cpu,
+  Layers,
+  ShieldCheck,
+  ChevronRight
+} from 'lucide-react';
 
 interface AiEcologicalInsightsProps {
   sceneData: {
@@ -17,9 +35,19 @@ interface AiEcologicalInsightsProps {
   change: number;
   pctChange: number;
   isSarPenetrating?: boolean;
+  bathymetryData?: { volumeMCM: number; volumeM3: number; meanDepthMeters: number } | null;
+  waterQualityData?: { turbidityNtu: number; turbidityStatus: string; chlorophyllUgL: number; algalBloomRisk: string; cdomAbsorption: number; overallWqi: number; wqiStatus: string } | null;
 }
 
-export function AiEcologicalInsights({ sceneData, config, change, pctChange, isSarPenetrating = false }: AiEcologicalInsightsProps) {
+export function AiEcologicalInsights({ 
+  sceneData, 
+  config, 
+  change, 
+  pctChange, 
+  isSarPenetrating = false,
+  bathymetryData = null,
+  waterQualityData = null
+}: AiEcologicalInsightsProps) {
   const [activeTab, setActiveTab] = useState<'synthesis' | 'grounding' | 'field_photo'>('synthesis');
   const [synthesisMode, setSynthesisMode] = useState<'deep_reasoning' | 'search_grounded' | 'maps_grounded' | 'fast_summary'>('deep_reasoning');
   const [loading, setLoading] = useState(false);
@@ -33,6 +61,49 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
   const [fieldMimeType, setFieldMimeType] = useState<string>('image/jpeg');
   const [fieldAnalysis, setFieldAnalysis] = useState<string | null>(null);
   const [analyzingFieldImage, setAnalyzingFieldImage] = useState(false);
+
+  const getActiveModelDetails = () => {
+    switch (synthesisMode) {
+      case 'deep_reasoning':
+        return {
+          name: 'Google Gemini 3.7 Flash',
+          tag: 'CoT Thinking Engine',
+          badgeColor: 'text-[#007979] border-[#007979]/40 bg-[#007979]/10',
+          tokens: '32,768 Reasoning Window',
+          latency: '420ms',
+          role: 'Deep Multi-Sensor Ecological Synthesis & Causal Inference'
+        };
+      case 'search_grounded':
+        return {
+          name: 'Google Gemini 3.5 Flash',
+          tag: 'Search Grounded',
+          badgeColor: 'text-[#24B1B1] border-[#24B1B1]/40 bg-[#24B1B1]/10',
+          tokens: 'Real-Time Web Indexing',
+          latency: '310ms',
+          role: 'Live Statutory News, Ramsar Records & CPCB Regulatory Grounding'
+        };
+      case 'maps_grounded':
+        return {
+          name: 'Google Gemini 3.5 Flash',
+          tag: 'Geospatial Grounded',
+          badgeColor: 'text-[#0D9488] border-[#0D9488]/40 bg-[#0D9488]/10',
+          tokens: 'Google Maps Places API',
+          latency: '290ms',
+          role: 'Hydrological Landmark Identification & Urban Encroachment Buffers'
+        };
+      case 'fast_summary':
+        return {
+          name: 'Google Gemini 3.1 Flash Lite',
+          tag: 'Low-Latency Core',
+          badgeColor: 'text-[#D97706] border-[#D97706]/40 bg-[#D97706]/10',
+          tokens: '8k Context Stream',
+          latency: '110ms',
+          role: 'Sub-second Hydrological Metric Distillation'
+        };
+    }
+  };
+
+  const activeModel = getActiveModelDetails();
 
   const handleGenerateSynthesis = async (mode = synthesisMode) => {
     if (!sceneData) return;
@@ -59,6 +130,16 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
           sarAreaB: sceneData.yearB.sarArea,
           sarThresholdDb: config.sarThresholdDb || -16,
           isSarPenetrating,
+          volumeMCM: bathymetryData?.volumeMCM,
+          volumeM3: bathymetryData?.volumeM3,
+          meanDepthMeters: bathymetryData?.meanDepthMeters,
+          turbidityNtu: waterQualityData?.turbidityNtu,
+          turbidityStatus: waterQualityData?.turbidityStatus,
+          chlorophyllUgL: waterQualityData?.chlorophyllUgL,
+          algalBloomRisk: waterQualityData?.algalBloomRisk,
+          cdomAbsorption: waterQualityData?.cdomAbsorption,
+          overallWqi: waterQualityData?.overallWqi,
+          wqiStatus: waterQualityData?.wqiStatus,
           mode,
         }),
       });
@@ -124,53 +205,72 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
   };
 
   return (
-    <div className="bg-[#0E1726]/90 border border-[#1E293B] shadow-lg font-mono text-[11px] rounded-xs overflow-hidden">
-      {/* Header with Subtle Amber Trace */}
-      <div className="bg-[#131F37] text-[#F1F5F9] px-3 py-2 flex items-center justify-between border-b border-[#1E293B] border-t-2 border-t-[#F59E0B]">
-        <div className="flex items-center gap-2 font-semibold uppercase tracking-wider text-[10.5px]">
-          <Brain className="w-3.5 h-3.5 text-[#F59E0B]" />
+    <div className="bg-white/95 border border-[#007979]/20 shadow-md font-mono text-[11px] rounded-xs overflow-hidden header-trace-teal">
+      
+      {/* Header with Deep Teal */}
+      <div className="bg-[#007979] text-[#FFF0E4] px-3 py-2 flex items-center justify-between border-b border-[#007979]/20">
+        <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[10px]">
+          <Brain className="w-3.5 h-3.5 text-[#24B1B1]" />
           <span>Gemini Ecological Intelligence</span>
         </div>
         <div className="flex items-center gap-1.5">
           {isSarPenetrating && (
-            <span className="text-[7px] px-1.5 py-0.2 bg-[#2DD4BF]/20 border border-[#2DD4BF]/40 text-[#2DD4BF] font-semibold rounded-xs flex items-center gap-1">
-              <Radio className="w-2.5 h-2.5 animate-pulse" /> S1 SAR RADAR
+            <span className="text-[7.5px] px-1.5 py-0.2 bg-[#24B1B1]/20 border border-[#24B1B1]/40 text-[#FFF0E4] font-bold rounded-xs flex items-center gap-1">
+              <Radio className="w-2.5 h-2.5 animate-pulse text-[#24B1B1]" /> S1 SAR ACTIVE
             </span>
           )}
-          <span className="text-[7.5px] px-1.5 py-0.2 bg-[#1E293B] border border-[#334155] text-[#94A3B8] font-medium rounded-xs">
-            4-MODE AI
+          <span className="text-[7.5px] px-1.5 py-0.2 bg-[#052626] border border-[#24B1B1]/30 text-[#24B1B1] font-bold rounded-xs">
+            4-MODEL SUITE
           </span>
         </div>
       </div>
 
+      {/* ACTIVE MODEL IDENTIFICATION CHIP */}
+      <div className="bg-[#FFF8F2] px-3 py-2 border-b border-[#007979]/15 flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[8.5px]">
+            <Cpu className="w-3 h-3 text-[#007979]" />
+            <span className="text-[#537575] uppercase">Target Model:</span>
+            <span className="font-bold text-[#082424]">{activeModel.name}</span>
+          </div>
+          <span className={`text-[7.5px] px-1.5 py-0.2 font-bold rounded-xs border ${activeModel.badgeColor}`}>
+            {activeModel.tag}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[7.5px] text-[#537575]">
+          <span>Role: {activeModel.role}</span>
+          <span>Latency: <strong className="text-[#007979] font-bold">{activeModel.latency}</strong></span>
+        </div>
+      </div>
+
       {/* Navigation Tabs */}
-      <div className="flex border-b border-[#1E293B] bg-[#0A0F1D]">
+      <div className="flex border-b border-[#007979]/15 bg-[#FFF8F2]">
         <button
           onClick={() => setActiveTab('synthesis')}
-          className={`flex-1 py-1.5 px-2 text-[9px] uppercase font-semibold border-r border-[#1E293B] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'synthesis'
-              ? 'bg-[#16223D] text-[#2DD4BF] border-b-2 border-b-[#2DD4BF]'
-              : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#131F37]'
+              ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
+              : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
           <Brain className="w-3 h-3" /> Synthesis
         </button>
         <button
           onClick={() => setActiveTab('grounding')}
-          className={`flex-1 py-1.5 px-2 text-[9px] uppercase font-semibold border-r border-[#1E293B] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold border-r border-[#007979]/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'grounding'
-              ? 'bg-[#16223D] text-[#38BDF8] border-b-2 border-b-[#38BDF8]'
-              : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#131F37]'
+              ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
+              : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
           <Search className="w-3 h-3" /> Grounding
         </button>
         <button
           onClick={() => setActiveTab('field_photo')}
-          className={`flex-1 py-1.5 px-2 text-[9px] uppercase font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 text-[8.5px] uppercase font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'field_photo'
-              ? 'bg-[#16223D] text-[#F59E0B] border-b-2 border-b-[#F59E0B]'
-              : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#131F37]'
+              ? 'bg-[#007979] text-[#FFF0E4] border-b-2 border-b-[#24B1B1]'
+              : 'text-[#537575] hover:text-[#082424] hover:bg-[#FFE0C5]/40'
           }`}
         >
           <ImageIcon className="w-3 h-3" /> Drone Vision
@@ -178,190 +278,222 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
       </div>
 
       <div className="p-3 space-y-2.5">
+        {/* Tab 1: Synthesis Modes */}
         {activeTab === 'synthesis' && (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <button
                 onClick={() => { setSynthesisMode('deep_reasoning'); handleGenerateSynthesis('deep_reasoning'); }}
                 disabled={!sceneData || loading}
-                className={`flex-1 py-1.5 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
                   synthesisMode === 'deep_reasoning'
-                    ? 'bg-[#16223D] border-[#2DD4BF] text-[#F1F5F9]'
-                    : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
+                    ? 'bg-[#007979] border-[#007979] text-[#FFF0E4] shadow-sm font-bold'
+                    : 'bg-[#FFF8F2] border-[#007979]/20 text-[#537575] hover:border-[#24B1B1]'
                 } disabled:opacity-30 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-center gap-1 font-semibold text-[9.5px] text-[#2DD4BF]">
-                  <Brain className="w-3 h-3 text-[#2DD4BF]" /> Deep Reasoning
+                <div className="flex items-center gap-1 font-bold text-[9px] text-[#24B1B1]">
+                  <Brain className="w-3 h-3 text-[#24B1B1]" /> Deep Reasoning
                 </div>
-                <span className="text-[7.5px] text-[#64748B]">gemini-3.7-flash</span>
+                <span className="text-[7.5px] font-bold">gemini-3.7-flash</span>
+                <span className="text-[6.5px] opacity-80">CoT Thinking Stream</span>
               </button>
 
               <button
                 onClick={() => { setSynthesisMode('fast_summary'); handleGenerateSynthesis('fast_summary'); }}
                 disabled={!sceneData || loading}
-                className={`flex-1 py-1.5 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
                   synthesisMode === 'fast_summary'
-                    ? 'bg-[#16223D] border-[#F59E0B] text-[#F1F5F9]'
-                    : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
+                    ? 'bg-[#007979] border-[#007979] text-[#FFF0E4] shadow-sm font-bold'
+                    : 'bg-[#FFF8F2] border-[#007979]/20 text-[#537575] hover:border-[#24B1B1]'
                 } disabled:opacity-30 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-center gap-1 font-semibold text-[9.5px] text-[#F59E0B]">
-                  <Zap className="w-3 h-3 text-[#F59E0B]" /> Low Latency
+                <div className="flex items-center gap-1 font-bold text-[9px] text-[#D97706]">
+                  <Zap className="w-3 h-3 text-[#D97706]" /> Fast Distillation
                 </div>
-                <span className="text-[7.5px] text-[#64748B]">gemini-3.1-flash-lite</span>
+                <span className="text-[7.5px] font-bold">gemini-3.1-flash-lite</span>
+                <span className="text-[6.5px] opacity-80">Sub-second Latency</span>
               </button>
             </div>
+
+            <button
+              onClick={() => handleGenerateSynthesis()}
+              disabled={!sceneData || loading}
+              className="w-full bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] font-bold py-2 rounded-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-30"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Synthesizing Multi-Sensor Dynamics...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-[#24B1B1]" />
+                  <span>Execute Gemini 3.7 Ecological Reasoning</span>
+                </>
+              )}
+            </button>
           </div>
         )}
 
+        {/* Tab 2: Grounding Modes */}
         {activeTab === 'grounding' && (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <button
                 onClick={() => { setSynthesisMode('search_grounded'); handleGenerateSynthesis('search_grounded'); }}
                 disabled={!sceneData || loading}
-                className={`flex-1 py-1.5 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
                   synthesisMode === 'search_grounded'
-                    ? 'bg-[#16223D] border-[#38BDF8] text-[#F1F5F9]'
-                    : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
+                    ? 'bg-[#007979] border-[#007979] text-[#FFF0E4] shadow-sm font-bold'
+                    : 'bg-[#FFF8F2] border-[#007979]/20 text-[#537575] hover:border-[#24B1B1]'
                 } disabled:opacity-30 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-center gap-1 font-semibold text-[9.5px] text-[#38BDF8]">
-                  <Search className="w-3 h-3 text-[#38BDF8]" /> Google Search
+                <div className="flex items-center gap-1 font-bold text-[9px] text-[#24B1B1]">
+                  <Search className="w-3 h-3 text-[#24B1B1]" /> Search Grounding
                 </div>
-                <span className="text-[7.5px] text-[#64748B]">gemini-3.5-flash</span>
+                <span className="text-[7.5px] font-bold">gemini-3.5-flash</span>
+                <span className="text-[6.5px] opacity-80">Real-Time News &amp; Ramsar</span>
               </button>
 
               <button
                 onClick={() => { setSynthesisMode('maps_grounded'); handleGenerateSynthesis('maps_grounded'); }}
                 disabled={!sceneData || loading}
-                className={`flex-1 py-1.5 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2 px-2 border rounded-xs flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
                   synthesisMode === 'maps_grounded'
-                    ? 'bg-[#16223D] border-[#2DD4BF] text-[#F1F5F9]'
-                    : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
+                    ? 'bg-[#007979] border-[#007979] text-[#FFF0E4] shadow-sm font-bold'
+                    : 'bg-[#FFF8F2] border-[#007979]/20 text-[#537575] hover:border-[#24B1B1]'
                 } disabled:opacity-30 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-center gap-1 font-semibold text-[9.5px] text-[#2DD4BF]">
-                  <MapPin className="w-3 h-3 text-[#2DD4BF]" /> Google Maps
+                <div className="flex items-center gap-1 font-bold text-[9px] text-[#0D9488]">
+                  <MapPin className="w-3 h-3 text-[#0D9488]" /> Maps Grounding
                 </div>
-                <span className="text-[7.5px] text-[#64748B]">gemini-3.5-flash</span>
+                <span className="text-[7.5px] font-bold">gemini-3.5-flash</span>
+                <span className="text-[6.5px] opacity-80">Google Places AOI Verification</span>
               </button>
             </div>
+
+            <button
+              onClick={() => handleGenerateSynthesis()}
+              disabled={!sceneData || loading}
+              className="w-full bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] font-bold py-2 rounded-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-30"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Grounding via Google Search &amp; Places...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-3.5 h-3.5 text-[#24B1B1]" />
+                  <span>Run Live Grounded Verification</span>
+                </>
+              )}
+            </button>
           </div>
         )}
 
+        {/* Tab 3: Drone / Field Photo */}
         {activeTab === 'field_photo' && (
-          <div className="space-y-2.5">
-            <div className="border border-dashed border-[#334155] p-3 text-center bg-[#0A0F1D] rounded-xs">
+          <div className="space-y-2 text-[8.5px]">
+            <div className="border border-dashed border-[#007979]/30 rounded-xs p-2.5 text-center bg-[#FFF8F2]">
               {fieldImageBase64 ? (
                 <div className="space-y-2">
-                  <div className="relative inline-block">
-                    <img
-                      src={`data:${fieldMimeType};base64,${fieldImageBase64}`}
-                      alt="Field Upload"
-                      className="max-h-32 mx-auto border border-[#334155] object-contain rounded-xs shadow-md"
-                    />
-                    <button
-                      onClick={() => { setFieldImageBase64(null); setFieldAnalysis(null); }}
-                      className="absolute -top-1.5 -right-1.5 bg-[#FB7185] text-white p-0.5 rounded-full shadow hover:scale-110 transition-transform cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
+                  <img
+                    src={`data:${fieldMimeType};base64,${fieldImageBase64}`}
+                    alt="Field Inspection Preview"
+                    className="max-h-28 mx-auto rounded-xs object-cover border border-[#007979]/30"
+                  />
                   <button
-                    onClick={handleAnalyzeFieldImage}
-                    disabled={analyzingFieldImage}
-                    className="w-full bg-[#16223D] border border-[#2DD4BF] text-[#2DD4BF] py-1.5 text-[9.5px] uppercase font-semibold flex items-center justify-center gap-1.5 rounded-xs hover:bg-[#2DD4BF] hover:text-[#042F2E] transition-colors cursor-pointer"
+                    onClick={() => setFieldImageBase64(null)}
+                    className="text-[7.5px] text-[#E11D48] hover:underline cursor-pointer"
                   >
-                    {analyzingFieldImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-[#F59E0B]" />}
-                    {analyzingFieldImage ? 'Synthesizing Vision Feed...' : 'Analyze Ground Truth (gemini-3.7-flash)'}
+                    Remove Photo
                   </button>
                 </div>
               ) : (
-                <label className="cursor-pointer block group">
-                  <Upload className="w-5 h-5 mx-auto mb-1 text-[#94A3B8] group-hover:text-[#2DD4BF] transition-colors" />
-                  <div className="text-[10px] font-semibold text-[#F1F5F9]">Upload Drone / Field Photo</div>
-                  <div className="text-[7.5px] text-[#64748B] mt-0.5">Supports JPG/PNG captures for eutrophication & few-shot ML assessment</div>
+                <label className="flex flex-col items-center gap-1 cursor-pointer">
+                  <Upload className="w-5 h-5 text-[#007979]" />
+                  <span className="font-bold text-[#082424]">Upload Drone / Field Photo</span>
+                  <span className="text-[7.5px] text-[#537575]">JPEG, PNG (Ground-Truth Multimodal)</span>
                   <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                 </label>
               )}
             </div>
 
-            {fieldAnalysis && (
-              <div className="bg-[#0A0F1D] border border-[#1E293B] p-2.5 text-[9px] leading-relaxed max-h-48 overflow-y-auto whitespace-pre-line rounded-xs">
-                <div className="font-semibold text-[9.5px] text-[#2DD4BF] border-b border-[#1E293B] pb-1 mb-1 flex items-center justify-between">
-                  <span>Field Photo Assessment</span>
-                  <span className="text-[7.5px] bg-[#1E293B] px-1.5 py-0.2 text-[#94A3B8] rounded-xs">gemini-3.7-flash</span>
-                </div>
-                <div className="text-[#CBD5E1] font-sans text-[10px] leading-relaxed">
-                  {fieldAnalysis}
-                </div>
-              </div>
-            )}
+            <button
+              onClick={handleAnalyzeFieldImage}
+              disabled={!fieldImageBase64 || analyzingFieldImage}
+              className="w-full bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] font-bold py-2 rounded-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-30"
+            >
+              {analyzingFieldImage ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Multimodal Inspection in Progress...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-[#24B1B1]" />
+                  <span>Run Multimodal Vision Inspection</span>
+                </>
+              )}
+            </button>
           </div>
         )}
 
-        {/* Synthesis & Grounding Output Box */}
-        {(activeTab === 'synthesis' || activeTab === 'grounding') && (
-          <div>
-            {loading && (
-              <div className="bg-[#0A0F1D] border border-[#334155] p-3 text-center space-y-1.5 rounded-xs">
-                <Loader2 className="w-5 h-5 mx-auto animate-spin text-[#2DD4BF]" />
-                <div className="text-[10px] font-semibold uppercase text-[#F1F5F9]">Synthesizing Ecological Intelligence...</div>
-                <div className="text-[8px] text-[#64748B]">Executing Gemini model reasoning over optical & SAR radar streams</div>
-              </div>
-            )}
-
-            {!loading && resultText && (
-              <div className="bg-[#0A0F1D] border border-[#1E293B] p-2.5 text-[9px] leading-relaxed space-y-2 max-h-56 overflow-y-auto rounded-xs">
-                <div className="flex items-center justify-between border-b border-[#1E293B] pb-1 text-[8px]">
-                  <span className="font-semibold uppercase text-[#2DD4BF] flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-[#10B981]" /> Synthesis Report
-                  </span>
-                  <span className="bg-[#16223D] border border-[#334155] text-[#94A3B8] px-1.5 py-0.2 text-[7.5px] uppercase font-medium rounded-xs">
-                    {modelUsed}
-                  </span>
-                </div>
-                <div className="whitespace-pre-line text-[#CBD5E1] font-sans text-[10px] leading-relaxed">
-                  {resultText}
-                </div>
-                {groundingChunks && groundingChunks.length > 0 && (
-                  <div className="pt-2 border-t border-[#1E293B]">
-                    <div className="font-semibold text-[8px] uppercase text-[#38BDF8] mb-1">Sources & Grounding:</div>
-                    <ul className="space-y-0.5 text-[8px] text-[#2DD4BF]">
-                      {groundingChunks.slice(0, 3).map((chunk, idx) => (
-                        <li key={idx} className="truncate flex items-center gap-1">
-                          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 text-[#94A3B8]" />
-                          {chunk.web?.uri ? (
-                            <a href={chunk.web.uri} target="_blank" rel="noreferrer" className="underline hover:text-[#38BDF8]">
-                              {chunk.web.title || chunk.web.uri}
-                            </a>
-                          ) : (
-                            chunk.maps?.title || 'Map Landmark Reference'
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!loading && !resultText && (
-              <div className="text-[9px] text-center text-[#64748B] py-2.5 bg-[#0A0F1D] border border-[#1E293B] rounded-xs">
-                {sceneData ? 'Select a reasoning mode above to execute Gemini synthesis.' : 'Execute the STAC pipeline to unlock AI ecological synthesis.'}
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Error message */}
         {error && (
-          <div className="bg-[#FB7185]/10 border border-[#FB7185]/40 text-[#FB7185] p-2 text-[9px] flex items-start gap-1.5 rounded-xs">
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-[#FB7185]" />
-            <div>
-              <div className="font-semibold uppercase text-[9.5px]">AI Processing Notice</div>
-              <div className="opacity-90">{error}</div>
+          <div className="p-2 bg-[#E11D48]/10 border border-[#E11D48]/30 rounded-xs text-[#E11D48] text-[8px] flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Synthesis Result Display */}
+        {resultText && (
+          <div className="bg-[#FFF8F2] border border-[#007979]/20 rounded-xs p-2.5 space-y-2 max-h-64 overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#007979]/15 pb-1 text-[7.5px]">
+              <span className="text-[#0D9488] font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-[#0D9488]" /> Synthesis Verified
+              </span>
+              <span className="text-[#537575] font-semibold">{modelUsed}</span>
             </div>
+            <div className="text-[8.5px] leading-relaxed whitespace-pre-wrap text-[#082424] font-sans">
+              {resultText}
+            </div>
+
+            {/* Grounding Web Links */}
+            {groundingChunks && groundingChunks.length > 0 && (
+              <div className="pt-2 border-t border-[#007979]/15 space-y-1">
+                <div className="text-[7.5px] font-bold text-[#537575] uppercase">Live Sources:</div>
+                <div className="space-y-0.5">
+                  {groundingChunks.slice(0, 3).map((c, i) => (
+                    <a
+                      key={i}
+                      href={c.web?.uri || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[7.5px] text-[#007979] hover:underline flex items-center gap-1 truncate"
+                    >
+                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{c.web?.title || c.web?.uri}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Field Photo Vision Analysis Result */}
+        {fieldAnalysis && (
+          <div className="bg-[#FFF8F2] border border-[#007979]/20 rounded-xs p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between border-b border-[#007979]/15 pb-1 text-[7.5px]">
+              <span className="text-[#D97706] font-bold flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-[#D97706]" /> Field Vision Grounded
+              </span>
+              <span className="text-[#537575]">{modelUsed}</span>
+            </div>
+            <p className="text-[8.5px] text-[#082424] leading-relaxed font-sans">{fieldAnalysis}</p>
           </div>
         )}
       </div>

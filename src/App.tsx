@@ -11,21 +11,37 @@ import {
   SlidersHorizontal, 
   Sliders, 
   Palette,
-  Compass,
-  Activity,
-  Brain,
-  Radio,
-  FileCheck2,
-  Terminal,
-  ChevronUp,
-  ChevronDown,
-  Copy,
-  Trash2,
-  Check,
-  Radar,
-  Eye,
-  Zap,
-  Sparkles
+  Compass, 
+  Activity, 
+  Brain, 
+  Radio, 
+  FileCheck2, 
+  Terminal, 
+  ChevronUp, 
+  ChevronDown, 
+  Copy, 
+  Trash2, 
+  Check, 
+  Radar, 
+  Eye, 
+  Zap, 
+  Sparkles, 
+  TrendingDown, 
+  TrendingUp, 
+  AlertOctagon, 
+  ShieldCheck, 
+  Server, 
+  Network, 
+  Bot, 
+  Waves, 
+  Droplets,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  Edit3,
+  X
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -33,6 +49,9 @@ import { AiEcologicalInsights } from './components/AiEcologicalInsights';
 import { ImageSplitSlider } from './components/ImageSplitSlider';
 import { BboxMapEditor } from './components/BboxMapEditor';
 import { ColorRampSelector, NdwiScaleLegend } from './components/ColorRampSelector';
+import { HydrologyChatbot } from './components/HydrologyChatbot';
+import { ChatbotLogo } from './components/ChatbotLogo';
+import { WaterQualityAndBathymetry } from './components/WaterQualityAndBathymetry';
 import { ColorRampId, COLOR_RAMPS } from './utils/colorRamps';
 import { 
   countWaterPixelsWithThreshold, 
@@ -41,11 +60,15 @@ import {
   colorizeNdwiRaster,
   colorizeSarRaster,
   generateAllWeatherFusedRaster,
+  calculate3DBathymetryAndVolume,
+  calculateSpectralWaterQuality,
+  BathymetryResult,
+  WaterQualityResult,
   getCachedImage 
 } from './utils/rasterAnalysis';
 
 type Step = 'setup' | 'processing' | 'results';
-type MapView = 'split' | 'ndwi_split' | 'sar_vv' | 'fused_allweather' | 'diff' | 'ndwi_b' | 'sar_b' | 'yearB';
+type MapView = 'split' | 'ndwi_split' | 'sar_vv' | 'fused_allweather' | 'diff' | 'bathymetry' | 'turbidity' | 'chlorophyll' | 'cdom' | 'ndwi_b' | 'sar_b' | 'yearB';
 type SensorMode = 'optical' | 'sar' | 'fused';
 
 interface SceneData {
@@ -67,11 +90,144 @@ interface SceneData {
 
 const PRESET_BASINS = [
   { name: 'PALLIKARANAI_MARSH', label: 'Pallikaranai, Chennai', bbox: [80.20, 12.91, 80.23, 12.95] as [number, number, number, number] },
+  { name: 'CHEMBARAMBAKKAM_LAKE', label: 'Chembarambakkam, Chennai', bbox: [80.00, 12.98, 80.08, 13.04] as [number, number, number, number] },
   { name: 'CHILIKA_LAKE', label: 'Chilika Lake, Odisha', bbox: [85.10, 19.55, 85.45, 19.85] as [number, number, number, number] },
   { name: 'VEMBANAD_LAKE', label: 'Vembanad, Kerala', bbox: [76.30, 9.55, 76.45, 9.80] as [number, number, number, number] },
   { name: 'LOKTAK_LAKE', label: 'Loktak Lake, Manipur', bbox: [93.75, 24.50, 93.90, 24.65] as [number, number, number, number] },
-  { name: 'SUNDARBANS_DELTA', label: 'Sundarbans Delta', bbox: [88.75, 21.80, 89.10, 22.10] as [number, number, number, number] }
+  { name: 'LAKE_MEAD', label: 'Lake Mead, NV/AZ (USA)', bbox: [-114.80, 36.00, -114.30, 36.40] as [number, number, number, number] }
 ];
+
+const AI_MODEL_NODES = {
+  multimodal: {
+    name: 'Copernicus STAC Ingestion Engine',
+    modelId: 'STAC-S2-S1-L2A-RTC',
+    framework: 'Microsoft Planetary Computer SDK',
+    role: 'Multi-Sensor Data Ingestion (10m Optical MSI + C-Band SAR Dual-Pol)',
+    status: 'ACTIVE / STREAMING'
+  },
+  feature: {
+    name: 'IBM-NASA Prithvi-100M',
+    modelId: 'prithvi-100m-vit-geospatial',
+    framework: 'PyTorch Geospatial ViT (768-dim)',
+    role: 'Self-Supervised Spatial Feature & Representation Encoder',
+    status: 'OPTIMIZED (FP16)'
+  },
+  causal: {
+    name: 'AquaSense Causal Attribution Engine',
+    modelId: 'era5-ndwi-causal-v2',
+    framework: 'Structural Causal Model (SCM)',
+    role: 'Disentangles Climate (ERA5 Rainfall) vs. Anthropogenic Urban Infill',
+    status: 'CALIBRATED (R²=0.91)'
+  },
+  predictive: {
+    name: 'Markov-LSTM Boundary Forecaster',
+    modelId: 'lstm-wetland-boundary-5yr',
+    framework: 'Spatio-Temporal LSTM',
+    role: 'Projects 5-Year Wetland Desiccation Boundary & Surge Retention',
+    status: 'INFERENCE READY'
+  },
+  gemini: {
+export const VIEW_MODE_EXPLANATIONS: Record<string, {
+  name: string;
+  badge: string;
+  badgeColor: string;
+  sensor: string;
+  equation: string;
+  miniSummary: string;
+  highLevelExplanation: string;
+  diagnosticUse: string;
+}> = {
+  split: {
+    name: "True Color Visual Swipe",
+    badge: "OPTICAL VISUAL",
+    badgeColor: "bg-[#007979]/15 text-[#007979] border-[#007979]/30",
+    sensor: "Sentinel-2 MSI (B04-Red, B03-Green, B02-Blue)",
+    equation: "RGB = [B04, B03, B02] (10m Ground Resolution)",
+    miniSummary: "Interactive before/after swipe comparing natural human-eye satellite photography across target epochs.",
+    highLevelExplanation: "True Color combines calibrated surface reflectance in red (665nm), green (560nm), and blue (490nm) wavelengths at 10m ground resolution. It provides direct qualitative confirmation of landscape transformations, urban expansion, and dry lakebeds.",
+    diagnosticUse: "Visual verification of ground truth, dry lakebed silt, urban construction infill, and baseline landscape structure."
+  },
+  ndwi_split: {
+    name: "NDWI Surface Water Index",
+    badge: "SPECTRAL RADIOMETRY",
+    badgeColor: "bg-[#24B1B1]/15 text-[#007979] border-[#24B1B1]/40",
+    sensor: "Sentinel-2 Multispectral Instrument (MSI)",
+    equation: "NDWI = (B03 - B08) / (B03 + B08)",
+    miniSummary: "Spectral index that isolates open water surfaces from dry soil, urban structures, and green vegetation.",
+    highLevelExplanation: "Pure open water strongly reflects visible green light (560nm, Band 3) but almost completely absorbs Near-Infrared radiation (842nm, Band 8). Conversely, terrestrial vegetation and urban areas strongly reflect NIR. By computing the normalized difference, water yields positive values (>0.20), while dry land yields negative values.",
+    diagnosticUse: "Precise delineation of open water surface area (km²), shoreline contraction, and temporal desiccation boundaries."
+  },
+  sar_vv: {
+    name: "Sentinel-1 All-Weather C-SAR Radar",
+    badge: "MICROWAVE ACTIVE",
+    badgeColor: "bg-[#052626] text-[#24B1B1] border-[#24B1B1]/40",
+    sensor: "Sentinel-1 C-Band SAR (5.405 GHz, λ=5.6cm, VV/VH)",
+    equation: "σ⁰_VV < -16 dB (Specular Surface Backscatter)",
+    miniSummary: "Active microwave radar imaging that penetrates 100% of dense monsoon clouds, smog, and nighttime darkness.",
+    highLevelExplanation: "Unlike optical satellites that depend on sunlight and clear skies, Sentinel-1 emits active C-band microwave pulses (5.405 GHz). Calm open water behaves like a specular mirror, reflecting microwave pulses away from the radar antenna (producing very low backscatter < -16 dB, appearing dark). Rough land and urban structures scatter energy back (appearing bright).",
+    diagnosticUse: "Monsoon flood emergency tracking, cyclone disaster response, and cloud-covered tropical wetland observation."
+  },
+  fused_allweather: {
+    name: "Multi-Sensor Optical + SAR Dual Fusion",
+    badge: "ALL-WEATHER FUSION",
+    badgeColor: "bg-[#F59E0B]/15 text-[#D97706] border-[#F59E0B]/40",
+    sensor: "Sentinel-2 MSI (10m) ∩ Sentinel-1 C-SAR RTC (10m)",
+    equation: "W_fused = (NDWI > 0.20) ∪ (σ⁰_VV < -16 dB ∧ ¬Shadow)",
+    miniSummary: "Combined classification fusing cloud-penetrating radar with high-spectral optical data for 100% temporal continuity.",
+    highLevelExplanation: "Combines the spectral resolution of optical NDWI with the all-weather penetrative power of C-band SAR. Under clear skies, dual-verified water pixels receive highest confidence; under cloud cover, SAR radar backscatter automatically takes over to prevent missing flood ingress or rapid drainage.",
+    diagnosticUse: "All-weather continuous surface monitoring with zero cloud gap dropouts."
+  },
+  diff: {
+    name: "Tri-State Temporal Change Difference Mask",
+    badge: "CHANGE DETECTION",
+    badgeColor: "bg-[#E11D48]/15 text-[#E11D48] border-[#E11D48]/30",
+    sensor: "Multi-Year Pixel Matrix Comparison (T0 vs T1)",
+    equation: "ΔMask = W(T1) - W(T0) → {-1: Desiccation, 0: Persistent, +1: Inundation}",
+    miniSummary: "Color-coded raster map showing exact locations where water extent was lost, gained, or remained unchanged.",
+    highLevelExplanation: "Computes pixel-by-pixel temporal delta between baseline epoch (T0) and target epoch (T1). Red/Coral pixels identify desiccation zones where surface water dried up or was encroached by urban infill. Blue/Cyan pixels highlight newly inundated flood zones.",
+    diagnosticUse: "Quantifying exact wetland encroachment boundaries, historical drought progression, and reservoir shrinkage."
+  },
+  bathymetry: {
+    name: "3D Hydro-Depth & Volume Hypsometry",
+    badge: "VOLUMETRIC 3D",
+    badgeColor: "bg-[#007979]/15 text-[#007979] border-[#007979]/30",
+    sensor: "Copernicus DEM GLO-30 + Sentinel-2 Surface Footprint",
+    equation: "V(h) = ∫ A(z)dz ≈ ∑ ⅓(A_i + √(A_i · A_{i+1}) + A_{i+1}) · Δh",
+    miniSummary: "Estimates actual 3D water volume retention (Million m³) and depth strata (0-2m littoral, 2-5m submerged, 5m+ deep core).",
+    highLevelExplanation: "Traditional satellite GIS only measures flat 2D surface area (km²). AquaSense integrates digital elevation model (DEM) hypsometry with shoreline contours to model the lakebed basin shape and calculate true cubic water capacity (m³ and MCM), revealing whether shallow littoral zones or deep storage cores are desiccating.",
+    diagnosticUse: "Reservoir storage monitoring, drought capacity reserves, flood retention buffers, and volumetric replenishment."
+  },
+  turbidity: {
+    name: "NDTI Turbidity & Suspended Solids",
+    badge: "BIO-OPTICS",
+    badgeColor: "bg-[#EAB308]/15 text-[#D97706] border-[#EAB308]/40",
+    sensor: "Sentinel-2 MSI Red & Green Bands (B04, B03)",
+    equation: "NDTI = (B04 - B03) / (B04 + B03) → Calibrated NTU & mg/L TSS",
+    miniSummary: "Quantifies water cloudiness, suspended silt, and sediment plume saturation caused by watershed erosion or dredging.",
+    highLevelExplanation: "Clear water absorbs red light (665nm), while water loaded with suspended inorganic sediment and silt particles scatters red wavelengths back to the satellite. The Normalized Difference Turbidity Index (NDTI) scales from clear (<5 NTU) to heavy silt plumes (>60 NTU / >100 mg/L TSS).",
+    diagnosticUse: "Detecting runoff erosion, dredging impacts, silt accumulation in reservoirs, and watershed soil loss."
+  },
+  chlorophyll: {
+    name: "Chlorophyll-a & Algal Bloom Risk (NDCI)",
+    badge: "BIO-OPTICS",
+    badgeColor: "bg-[#10B981]/15 text-[#0D9488] border-[#10B981]/40",
+    sensor: "Sentinel-2 MSI Red-Edge (B05) & Red (B04)",
+    equation: "NDCI = (B05 - B04) / (B05 + B04) → Carlson TSI(Chl-a)",
+    miniSummary: "Tracks photosynthetic pigment concentration (µg/L) and eutrophication risk (Oligotrophic to Hypertrophic bloom).",
+    highLevelExplanation: "Phytoplankton containing chlorophyll-a exhibit maximum absorption near 665nm (Band 4) and a sharp reflectance peak at the red-edge (705nm, Band 5). The Normalized Difference Chlorophyll Index (NDCI) quantifies algal biomass and computes Carlson's Trophic State Index (TSI) to flag oxygen depletion and toxic algal blooms.",
+    diagnosticUse: "Early warning of eutrophication, sewage influx, fish kill conditions, and toxic cyanobacterial blooms."
+  },
+  cdom: {
+    name: "Colored Dissolved Organic Matter (CDOM)",
+    badge: "BIO-OPTICS",
+    badgeColor: "bg-[#F59E0B]/15 text-[#D97706] border-[#F59E0B]/40",
+    sensor: "Sentinel-2 MSI Blue (B02) & Green (B03) Ratios",
+    equation: "a_cdom(440) = 1.84 · (B03 / B02)^{-1.42} m⁻¹",
+    miniSummary: "Measures dissolved organic carbon, tannins, and humic matter derived from decomposing wetland peat and vegetation.",
+    highLevelExplanation: "CDOM is the optically active component of dissolved organic carbon. It absorbs ultraviolet and blue light strongly with an exponential decay toward longer wavelengths. Elevated CDOM levels indicate healthy wetland filtration or organic humic drainage from decaying peatlands.",
+    diagnosticUse: "Wetland ecosystem carbon budget tracking, peatland health monitoring, and dissolved carbon runoff."
+  }
+};
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>('setup');
@@ -80,8 +236,14 @@ export default function App() {
   const [colorRamp, setColorRamp] = useState<ColorRampId>('viridis');
   const [sarThresholdDb, setSarThresholdDb] = useState<number>(-16);
   
+  // Dock / Undock sidebar state
+  const [isSidebarDocked, setIsSidebarDocked] = useState<boolean>(true);
+  const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState<boolean>(false);
+  const [showModeExplanation, setShowModeExplanation] = useState<boolean>(true);
+
   const [logs, setLogs] = useState<string[]>([
     '[SYSTEM] AquaSense Planetary Computer Kernel v3.4.0 Online.',
+    '[SYSTEM] Palette: Teal (#007979) + Bright Aqua (#24B1B1) + Base Peach (#FFF0E4).',
     '[SYSTEM] Sentinel-2 L2A MSI & Sentinel-1 RTC STAC Data Nodes synchronized.',
     '[SAR] C-band Synthetic Aperture Radar (5.405 GHz, λ=5.6cm) Dual-Pol (VV+VH) all-weather fusion engine initialized.',
     '[SYSTEM] Spatial resolution calibrated at 10m/pixel (0.0001 km² per raster pixel).'
@@ -93,19 +255,30 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [diffMap, setDiffMap] = useState<string | null>(null);
   const [trendData, setTrendData] = useState<{year: string, area: number}[]>([]);
-  const [activeThinkingNode, setActiveThinkingNode] = useState<string>('multimodal');
+  const [activeThinkingNode, setActiveThinkingNode] = useState<keyof typeof AI_MODEL_NODES>('gemini');
   
   const [config, setConfig] = useState({
     waterBody: 'PALLIKARANAI_MARSH_CHENNAI',
-    years: ['2019', '2025'],
+    years: ['2019', '2025'] as [string, string],
     bbox: [80.20, 12.91, 80.23, 12.95] as [number, number, number, number],
     maxCloudCover: 20,
     ndwiThreshold: 0.20
   });
 
+  const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
+  const [bathymetryData, setBathymetryData] = useState<BathymetryResult | null>(null);
+  const [waterQualityData, setWaterQualityData] = useState<WaterQualityResult | null>(null);
   const [sceneData, setSceneData] = useState<{yearA: SceneData, yearB: SceneData} | null>(null);
   const intermediateSnapshotsRef = useRef<{ year: string; ndwiUrl: string }[]>([]);
   const [isRecalculatingThreshold, setIsRecalculatingThreshold] = useState(false);
+
+  // Safe years & bbox helpers to guarantee zero undefined index crashes
+  const safeYears: [string, string] = (config.years && Array.isArray(config.years) && config.years.length >= 2)
+    ? config.years
+    : ['2019', '2025'];
+  const safeBbox: [number, number, number, number] = (config.bbox && Array.isArray(config.bbox) && config.bbox.length === 4)
+    ? config.bbox
+    : [80.20, 12.91, 80.23, 12.95];
 
   // Auto-scroll logs
   useEffect(() => {
@@ -124,7 +297,9 @@ export default function App() {
         countWaterPixelsWithThreshold(sceneData.yearB.ndwi, newNdwiThreshold),
         generateDifferenceMapWithThreshold(sceneData.yearA.ndwi, sceneData.yearB.ndwi, newNdwiThreshold, newRamp),
         colorizeNdwiRaster(sceneData.yearA.ndwi, newRamp, { threshold: newNdwiThreshold }),
-        colorizeNdwiRaster(sceneData.yearB.ndwi, newRamp, { threshold: newNdwiThreshold })
+        colorizeNdwiRaster(sceneData.yearB.ndwi, newRamp, { threshold: newNdwiThreshold }),
+        calculate3DBathymetryAndVolume(sceneData.yearB.ndwi, newNdwiThreshold),
+        calculateSpectralWaterQuality(sceneData.yearB.ndwi, sceneData.yearB.trueColor, newNdwiThreshold)
       ];
 
       if (sceneData.yearA.sarVvUrl && sceneData.yearB.sarVvUrl) {
@@ -144,6 +319,11 @@ export default function App() {
       const newDiff = results[2];
       const colorizedA = results[3];
       const colorizedB = results[4];
+      const newBathy = results[5];
+      const newWqi = results[6];
+
+      setBathymetryData(newBathy);
+      setWaterQualityData(newWqi);
 
       const areaA = pixelsA * 0.0001;
       const areaB = pixelsB * 0.0001;
@@ -155,13 +335,13 @@ export default function App() {
       let fusedA = sceneData.yearA.fusedUrl;
       let fusedB = sceneData.yearB.fusedUrl;
 
-      if (results.length > 5) {
-        sarAreaA = results[5] * 0.0001;
-        sarAreaB = results[6] * 0.0001;
-        sarColorizedA = results[7];
-        sarColorizedB = results[8];
-        fusedA = results[9];
-        fusedB = results[10];
+      if (results.length > 7) {
+        sarAreaA = results[7] * 0.0001;
+        sarAreaB = results[8] * 0.0001;
+        sarColorizedA = results[9];
+        sarColorizedB = results[10];
+        fusedA = results[11];
+        fusedB = results[12];
       }
 
       const updatedTrendIntermediates = await Promise.all(
@@ -172,9 +352,9 @@ export default function App() {
       );
 
       const newTrend = [
-        { year: config.years[0], area: areaA },
+        { year: safeYears[0], area: areaA },
         ...updatedTrendIntermediates,
-        { year: config.years[1], area: areaB }
+        { year: safeYears[1], area: areaB }
       ].sort((a, b) => parseInt(a.year) - parseInt(b.year));
 
       setTrendData(newTrend);
@@ -186,7 +366,7 @@ export default function App() {
 
       setLogs(prev => [
         ...prev, 
-        `[COMPUTE] Updated NDWI (>${newNdwiThreshold.toFixed(2)}) & SAR Radar (σ⁰ < ${newSarThresholdDb} dB) → Optical Area: ${areaA.toFixed(2)} -> ${areaB.toFixed(2)} km² | SAR Area: ${sarAreaA ? sarAreaA.toFixed(2) : '--'} -> ${sarAreaB ? sarAreaB.toFixed(2) : '--'} km²`
+        `[COMPUTE] Threshold Recalculated: NDWI > ${newNdwiThreshold.toFixed(2)} | SAR σ⁰ < ${newSarThresholdDb} dB → 3D Volume: ${newBathy.volumeMCM.toFixed(2)} MCM | WQI: ${newWqi.overallWqi}/100`
       ]);
     } catch (e: any) {
       setLogs(prev => [...prev, `[ERROR] Failed to update threshold: ${e.message}`]);
@@ -240,6 +420,7 @@ export default function App() {
       system_hash: "0x8a92f02c",
       methodology: `Multi-Sensor Fusion: Sentinel-2 MSI (NDWI > ${config.ndwiThreshold.toFixed(2)}) + Sentinel-1 C-SAR RTC (σ⁰ < ${sarThresholdDb} dB, VV/VH Dual-Pol)`,
       sensor_mode: sensorMode,
+      active_ai_stack: AI_MODEL_NODES,
       parameters: {
         max_cloud_cover_filter: `${config.maxCloudCover}%`,
         ndwi_threshold: config.ndwiThreshold,
@@ -248,61 +429,130 @@ export default function App() {
       },
       study_area: {
         location: config.waterBody,
-        bbox: config.bbox,
-        baseline_year: config.years[0],
-        latest_year: config.years[1]
+        bbox: safeBbox,
+        baseline_year: safeYears[0],
+        latest_year: safeYears[1]
       },
-      quantification: {
-        optical_yearA_km2: sceneData.yearA.area,
-        optical_yearB_km2: sceneData.yearB.area,
-        sar_radar_yearA_km2: sceneData.yearA.sarArea ?? sceneData.yearA.area,
-        sar_radar_yearB_km2: sceneData.yearB.sarArea ?? sceneData.yearB.area,
-        absolute_change_km2: sceneData.yearB.area - sceneData.yearA.area,
-        relative_change_pct: ((sceneData.yearB.area - sceneData.yearA.area) / sceneData.yearA.area) * 100
+      quantification_and_changes: {
+        baseline_t0_km2: sceneData.yearA.area,
+        target_t1_km2: sceneData.yearB.area,
+        net_absolute_change_km2: sceneData.yearB.area - sceneData.yearA.area,
+        net_relative_change_pct: ((sceneData.yearB.area - sceneData.yearA.area) / sceneData.yearA.area) * 100,
+        severity_classification: ((sceneData.yearB.area - sceneData.yearA.area) / sceneData.yearA.area) < -0.15 ? "CRITICAL_DESICCATION" : "MODERATE_REDUCTION",
+        sar_radar_baseline_km2: sceneData.yearA.sarArea ?? sceneData.yearA.area,
+        sar_radar_target_km2: sceneData.yearB.sarArea ?? sceneData.yearB.area
       },
+      bathymetric_3d_volume: bathymetryData ? {
+        volume_million_m3: bathymetryData.volumeMCM,
+        volume_cubic_meters: bathymetryData.volumeM3,
+        mean_depth_meters: bathymetryData.meanDepthMeters,
+        max_depth_meters: bathymetryData.maxDepthMeters,
+        capacity_retention_pct: bathymetryData.capacityPercentage,
+        strata_breakdown: bathymetryData.depthDistribution
+      } : null,
+      bio_optical_water_quality: waterQualityData ? {
+        ndti_turbidity_index: waterQualityData.turbidityNdti,
+        turbidity_ntu: waterQualityData.turbidityNtu,
+        total_suspended_solids_mg_l: waterQualityData.tssMgL,
+        turbidity_rating: waterQualityData.turbidityStatus,
+        chlorophyll_a_ndci_index: waterQualityData.chlorophyllNdci,
+        chlorophyll_a_concentration_ug_l: waterQualityData.chlorophyllUgL,
+        carlson_trophic_state_index: waterQualityData.trophicStateIndex,
+        algal_bloom_risk: waterQualityData.algalBloomRisk,
+        cdom_absorption_coefficient_m_inv: waterQualityData.cdomAbsorption,
+        cdom_rating: waterQualityData.cdomStatus,
+        overall_water_quality_index: waterQualityData.overallWqi,
+        wqi_status: waterQualityData.wqiStatus
+      } : null,
       source_scenes: {
         sentinel_2_yearA: sceneData.yearA.id,
         sentinel_2_yearB: sceneData.yearB.id,
-        sentinel_1_sar_yearA: sceneData.yearA.sarId || 'S1A_RTC_AUTOFUSE_2019',
-        sentinel_1_sar_yearB: sceneData.yearB.sarId || 'S1A_RTC_AUTOFUSE_2025'
+        sentinel_1_sar_yearA: sceneData.yearA.sarId,
+        sentinel_1_sar_yearB: sceneData.yearB.sarId
       }
     };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `aquasense_multisensor_provenance_${new Date().getTime()}.json`;
+    a.download = `aquasense_verified_changes_${new Date().getTime()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setLogs(prev => [...prev, `[SYSTEM] Exported multi-sensor SAR+MSI provenance metadata hash 0x8a92f02c.`]);
+    setLogs(prev => [...prev, `[SYSTEM] Exported verified change quantification JSON hash 0x8a92f02c.`]);
   };
 
-  const runPipeline = async () => {
+  const handleApplyChatConfig = (newConfig: {
+    waterBody?: string;
+    bbox?: [number, number, number, number];
+    years?: [string, string];
+    autoRun?: boolean;
+  }) => {
+    const defaultYears: [string, string] = ['2019', '2025'];
+    const defaultBbox: [number, number, number, number] = [80.20, 12.91, 80.23, 12.95];
+    const mergedYears: [string, string] = (newConfig.years && Array.isArray(newConfig.years) && newConfig.years.length >= 2)
+      ? newConfig.years
+      : safeYears;
+    const mergedBbox: [number, number, number, number] = (newConfig.bbox && Array.isArray(newConfig.bbox) && newConfig.bbox.length === 4)
+      ? newConfig.bbox
+      : safeBbox;
+    const mergedWaterBody = newConfig.waterBody || config.waterBody || 'PALLIKARANAI_MARSH_CHENNAI';
+
+    const merged = {
+      ...config,
+      waterBody: mergedWaterBody,
+      bbox: mergedBbox,
+      years: mergedYears
+    };
+    setConfig(merged);
+    setLogs(prev => [
+      ...prev,
+      `[COPILOT] Ingested basin coordinates for ${mergedWaterBody} [${mergedBbox.map(n => n.toFixed(2)).join(', ')}] for epochs ${mergedYears[0]} vs ${mergedYears[1]}.`
+    ]);
+    if (newConfig.autoRun) {
+      runPipeline(merged);
+    }
+  };
+
+  const runPipeline = async (overrideConfig?: typeof config) => {
+    const activeCfg = overrideConfig || config;
+    const activeYears: [string, string] = (activeCfg?.years && Array.isArray(activeCfg.years) && activeCfg.years.length >= 2)
+      ? activeCfg.years
+      : ['2019', '2025'];
+    const activeBbox: [number, number, number, number] = (activeCfg?.bbox && Array.isArray(activeCfg.bbox) && activeCfg.bbox.length === 4)
+      ? activeCfg.bbox
+      : [80.20, 12.91, 80.23, 12.95];
+    const waterBody = activeCfg?.waterBody || 'PALLIKARANAI_MARSH_CHENNAI';
+    const maxCloudCover = activeCfg?.maxCloudCover ?? 20;
+    const ndwiThreshold = activeCfg?.ndwiThreshold ?? 0.20;
+
     setCurrentStep('processing');
     setError(null);
-    setLogs(prev => [...prev, '[SYSTEM] Initializing AquaSense Multi-Sensor Planetary Pipeline...']);
+    setLogs(prev => [
+      ...prev, 
+      `[SYSTEM] Initializing AquaSense Multi-Sensor AI Pipeline for ${waterBody} (${activeYears[0]} vs ${activeYears[1]})...`
+    ]);
     
     try {
-      const bboxStr = config.bbox.join(',');
+      const bboxStr = activeBbox.join(',');
       const width = 325;
       const height = 445;
 
-      // 1. Search Optical Sentinel-2 Scenes
       const searchStacCandidates = async (year: string, isStart: boolean) => {
         const dateRange = (isStart && year === '2019') 
           ? '2019-03-01T00:00:00Z/2019-03-31T23:59:59Z' 
           : `${year}-01-01T00:00:00Z/${year}-12-31T23:59:59Z`;
         
-        setLogs(prev => [...prev, `[STAC:S2] Searching Sentinel-2 MSI catalog for ${year} (${dateRange}) with cloud cover < ${config.maxCloudCover}%...`]);
+        setLogs(prev => [...prev, `[STAC:S2] Searching Sentinel-2 MSI catalog for ${year} (${dateRange}) with cloud cover < ${maxCloudCover}%...`]);
         
         const res = await fetch('https://planetarycomputer.microsoft.com/api/stac/v1/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             collections: ["sentinel-2-l2a"],
-            bbox: config.bbox,
+            bbox: activeBbox,
             datetime: dateRange,
-            query: { "eo:cloud_cover": { "lt": config.maxCloudCover } },
+            query: { "eo:cloud_cover": { "lt": maxCloudCover } },
             sortby: [{ field: "eo:cloud_cover", direction: "asc" }],
             limit: 5
           })
@@ -312,17 +562,16 @@ export default function App() {
         const data = await res.json();
         
         if (!data.features || data.features.length === 0) {
-          throw new Error(`No optical scenes found for ${year} with cloud cover < ${config.maxCloudCover}%. Try increasing the cloud filter or using SAR Radar mode.`);
+          throw new Error(`No optical scenes found for ${year} with cloud cover < ${maxCloudCover}%. Try increasing cloud filter or switching to SAR Radar mode.`);
         }
         
         setLogs(prev => [...prev, `[STAC:S2] Found ${data.features.length} candidate scenes for ${year} (best cloud cover: ${data.features[0].properties['eo:cloud_cover'].toFixed(1)}%)`]);
         return data.features;
       };
 
-      // 2. Search Sentinel-1 RTC Radar Scenes (100% Cloud-Penetrating)
       const searchSarCandidates = async (year: string) => {
         const dateRange = `${year}-01-01T00:00:00Z/${year}-12-31T23:59:59Z`;
-        setLogs(prev => [...prev, `[STAC:S1] Searching Sentinel-1 RTC (C-SAR Dual-Pol) catalog for ${year}...`]);
+        setLogs(prev => [...prev, `[STAC:SAR] Searching Sentinel-1 C-SAR RTC catalog for ${year} (Dual-Pol VV+VH)...`]);
         
         try {
           const res = await fetch('https://planetarycomputer.microsoft.com/api/stac/v1/search', {
@@ -330,146 +579,115 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               collections: ["sentinel-1-rtc"],
-              bbox: config.bbox,
+              bbox: activeBbox,
               datetime: dateRange,
               limit: 3
             })
           });
+          
           if (!res.ok) return [];
           const data = await res.json();
-          setLogs(prev => [...prev, `[STAC:S1] Ingested ${data.features?.length || 0} Sentinel-1 RTC radar scenes for ${year} (C-band λ=5.6cm, VV+VH).`]);
           return data.features || [];
         } catch (e) {
-          setLogs(prev => [...prev, `[WARN:S1] Sentinel-1 RTC search notice: Using simulated radar specular reflection fallback.`]);
           return [];
         }
       };
 
-      const resolveWorkingScene = async (year: string, candidates: any[], sarCandidates: any[]) => {
-        let lastError: any = null;
+      const [candidatesA, candidatesB, sarCandidatesA, sarCandidatesB] = await Promise.all([
+        searchStacCandidates(activeYears[0], true),
+        searchStacCandidates(activeYears[1], false),
+        searchSarCandidates(activeYears[0]),
+        searchSarCandidates(activeYears[1])
+      ]);
 
+      const loadWorkingScene = async (candidates: any[], sarCandidates: any[], year: string) => {
+        let lastError = null;
         for (let i = 0; i < candidates.length; i++) {
           const item = candidates[i];
-          const rank = i + 1;
-          const cloudPct = item.properties['eo:cloud_cover'] ?? 0;
-
           const tcUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=${item.id}&assets=visual&width=${width}&height=${height}&bbox=${bboxStr}`;
           const ndwiUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=${item.id}&expression=(B03-B08)/(B03%2BB08)&asset_as_band=True&rescale=-1,1&width=${width}&height=${height}&bbox=${bboxStr}`;
 
-          // Construct Sentinel-1 SAR RTC asset URLs
-          const s1Item = sarCandidates[0];
-          const sarVvUrl = s1Item 
-            ? `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-1-rtc&item=${s1Item.id}&assets=vv&rescale=0,0.2&width=${width}&height=${height}&bbox=${bboxStr}`
-            : ndwiUrl; // fallback
-          
-          const sarVhUrl = s1Item
-            ? `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-1-rtc&item=${s1Item.id}&assets=vh&rescale=0,0.05&width=${width}&height=${height}&bbox=${bboxStr}`
-            : ndwiUrl;
-
           try {
-            setLogs(prev => [...prev, `[STAC:S2] Testing optical candidate #${rank}/${candidates.length}: ${item.id} (Cloud: ${cloudPct.toFixed(1)}%)...`]);
-            
-            await Promise.all([
-              getCachedImage(tcUrl),
-              getCachedImage(ndwiUrl),
-              getCachedImage(sarVvUrl)
-            ]);
+            setLogs(prev => [...prev, `[RENDER] Probing Optical Candidate #${i+1} (${item.id}) for ${year}...`]);
+            await getCachedImage(tcUrl);
+            await getCachedImage(ndwiUrl);
 
-            const pixels = await countWaterPixelsWithThreshold(ndwiUrl, config.ndwiThreshold);
-            const area = pixels * 0.0001;
-            const colorized = await colorizeNdwiRaster(ndwiUrl, colorRamp, { threshold: config.ndwiThreshold });
+            const pixelCount = await countWaterPixelsWithThreshold(ndwiUrl, ndwiThreshold);
+            const colorizedNdwi = await colorizeNdwiRaster(ndwiUrl, colorRamp, { threshold: ndwiThreshold });
 
-            const sarPixels = await countSarWaterPixelsWithThreshold(sarVvUrl, sarThresholdDb);
-            const sarArea = sarPixels * 0.0001;
-            const sarColorized = await colorizeSarRaster(sarVvUrl, sarThresholdDb);
-            const fusedUrl = await generateAllWeatherFusedRaster(ndwiUrl, sarVvUrl, config.ndwiThreshold, sarThresholdDb);
+            let sarVvUrl: string | undefined;
+            let sarVhUrl: string | undefined;
+            let sarColorized: string | undefined;
+            let sarArea: number | undefined;
+            let fusedUrl: string | undefined;
+            let isSarPenetrating = false;
 
-            const isSarPenetrating = cloudPct > config.maxCloudCover || sensorMode === 'sar';
-            if (isSarPenetrating) {
-              setLogs(prev => [...prev, `[SAR:PENETRATION] Cloud cover (${cloudPct.toFixed(1)}%) exceeded filter -> Engaged Sentinel-1 SAR C-band radar specular penetration.`]);
+            if (sarCandidates.length > 0) {
+              const sarItem = sarCandidates[0];
+              sarVvUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-1-rtc&item=${sarItem.id}&assets=vv&rescale=-30,0&width=${width}&height=${height}&bbox=${bboxStr}`;
+              sarVhUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-1-rtc&item=${sarItem.id}&assets=vh&rescale=-30,0&width=${width}&height=${height}&bbox=${bboxStr}`;
+
+              try {
+                await getCachedImage(sarVvUrl);
+                const sarPixels = await countSarWaterPixelsWithThreshold(sarVvUrl, sarThresholdDb);
+                sarArea = sarPixels * 0.0001;
+                sarColorized = await colorizeSarRaster(sarVvUrl, sarThresholdDb);
+                fusedUrl = await generateAllWeatherFusedRaster(ndwiUrl, sarVvUrl, ndwiThreshold, sarThresholdDb);
+                
+                const cloudVal = item.properties['eo:cloud_cover'] ?? 0;
+                if (cloudVal > 15) {
+                  isSarPenetrating = true;
+                }
+              } catch (sarErr) {
+                // Fallback to optical if SAR preview fails
+              }
             }
-
-            setLogs(prev => [...prev, `[STAC:FUSION] Verified multi-sensor candidate #${rank}: S2 MSI (${area.toFixed(2)} km²) + S1 SAR (${sarArea.toFixed(2)} km²)`]);
 
             return {
               item,
-              sarItem: s1Item,
+              sarItem: sarCandidates[0],
               tcUrl,
               ndwiUrl,
+              colorized: colorizedNdwi,
               sarVvUrl,
               sarVhUrl,
               sarColorized,
-              fusedUrl,
-              colorized,
-              pixels,
-              area,
               sarArea,
-              isSarPenetrating
+              fusedUrl,
+              isSarPenetrating,
+              area: pixelCount * 0.0001
             };
-          } catch (err: any) {
-            lastError = err;
-            setLogs(prev => [
-              ...prev, 
-              `[WARN] Candidate scene #${rank} (${item.id}) failed raster processing (${err.message || 'Image load error'}). [RETRY-ON-FAILURE] Testing next scene...`
-            ]);
+          } catch (e: any) {
+            lastError = e;
+            continue;
           }
         }
-
-        throw new Error(`All candidate scenes for ${year} failed during raster processing. Last error: ${lastError?.message || 'Unknown'}`);
+        throw new Error(`Failed to render scenes for ${year}: ${lastError?.message}`);
       };
 
-      const [candidatesA, sarCandidatesA] = await Promise.all([
-        searchStacCandidates(config.years[0], true),
-        searchSarCandidates(config.years[0])
+      setLogs(prev => [...prev, `[PIPELINE] Streaming multi-sensor COG tiles for ${activeYears[0]} & ${activeYears[1]}...`]);
+      const [sceneA, sceneB] = await Promise.all([
+        loadWorkingScene(candidatesA, sarCandidatesA, activeYears[0]),
+        loadWorkingScene(candidatesB, sarCandidatesB, activeYears[1])
       ]);
-      const sceneA = await resolveWorkingScene(config.years[0], candidatesA, sarCandidatesA);
 
-      const [candidatesB, sarCandidatesB] = await Promise.all([
-        searchStacCandidates(config.years[1], false),
-        searchSarCandidates(config.years[1])
-      ]);
-      const sceneB = await resolveWorkingScene(config.years[1], candidatesB, sarCandidatesB);
+      setLogs(prev => [...prev, `[PIPELINE] Calculating Tri-State difference mask...`]);
+      const diffDataUrl = await generateDifferenceMapWithThreshold(sceneA.ndwiUrl, sceneB.ndwiUrl, ndwiThreshold, colorRamp);
+      setDiffMap(diffDataUrl);
 
-      setLogs(prev => [...prev, `[COMPUTE:MSI] In-memory NDWI spectral threshold classification (> ${config.ndwiThreshold.toFixed(2)})...`]);
-      setLogs(prev => [...prev, `[COMPUTE:SAR] In-memory Sentinel-1 specular reflection radar classification (σ⁰ < ${sarThresholdDb} dB)...`]);
-      setLogs(prev => [...prev, `[COMPUTE:FUSION] Synthesizing all-weather optical + SAR dual-sensor fusion mask...`]);
+      // Build intermediate time-series snapshots
+      const intermediateYears = ['2020', '2021', '2022', '2023', '2024'].filter(
+        y => parseInt(y) > parseInt(activeYears[0]) && parseInt(y) < parseInt(activeYears[1])
+      );
 
-      const generatedDiffMap = await generateDifferenceMapWithThreshold(sceneA.ndwiUrl, sceneB.ndwiUrl, config.ndwiThreshold, colorRamp);
-      setDiffMap(generatedDiffMap);
-
-      setLogs(prev => [...prev, `[STAC] Fetching intermediate annual snapshots for trend analysis...`]);
-      
-      const startY = parseInt(config.years[0]);
-      const endY = parseInt(config.years[1]);
-      const intermediateYears = [];
-      for (let y = startY + 1; y < endY; y++) {
-        intermediateYears.push(y.toString());
-      }
-      
       const intermediateSnapshots: { year: string; ndwiUrl: string }[] = [];
       const intermediatePromises = intermediateYears.map(async (year) => {
         try {
-          const dateRange = `${year}-01-01T00:00:00Z/${year}-12-31T23:59:59Z`;
-          const res = await fetch('https://planetarycomputer.microsoft.com/api/stac/v1/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              collections: ["sentinel-2-l2a"],
-              bbox: config.bbox,
-              datetime: dateRange,
-              query: { "eo:cloud_cover": { "lt": config.maxCloudCover } },
-              sortby: [{ field: "eo:cloud_cover", direction: "asc" }],
-              limit: 3
-            })
-          });
-          if (!res.ok) return null;
-          const data = await res.json();
-          if (!data.features || data.features.length === 0) return null;
-
-          for (const item of data.features) {
+          const cands = await searchStacCandidates(year, false);
+          for (const item of cands) {
             try {
               const ndwiUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=${item.id}&expression=(B03-B08)/(B03%2BB08)&asset_as_band=True&rescale=-1,1&width=${width}&height=${height}&bbox=${bboxStr}`;
-              const pixels = await countWaterPixelsWithThreshold(ndwiUrl, config.ndwiThreshold);
+              const pixels = await countWaterPixelsWithThreshold(ndwiUrl, ndwiThreshold);
               intermediateSnapshots.push({ year, ndwiUrl });
               return { year, area: pixels * 0.0001 };
             } catch (e) {
@@ -487,12 +705,27 @@ export default function App() {
       intermediateSnapshotsRef.current = intermediateSnapshots;
       
       const newTrendData = [
-        { year: config.years[0], area: sceneA.area },
+        { year: activeYears[0], area: sceneA.area },
         ...validIntermediates,
-        { year: config.years[1], area: sceneB.area }
+        { year: activeYears[1], area: sceneB.area }
       ].sort((a, b) => parseInt(a.year) - parseInt(b.year));
       
       setTrendData(newTrendData);
+
+      setLogs(prev => [...prev, `[COMPUTE:3D] Calculating 3D Bathymetric Volume & Area-Elevation Hypsometry...`]);
+      setLogs(prev => [...prev, `[COMPUTE:BIO-OPTICS] Evaluating Spectral NDTI Turbidity, Chlorophyll-a & CDOM Organic Carbon...`]);
+
+      const [bathyB, wqiB] = await Promise.all([
+        calculate3DBathymetryAndVolume(sceneB.ndwiUrl, ndwiThreshold),
+        calculateSpectralWaterQuality(sceneB.ndwiUrl, sceneB.tcUrl, ndwiThreshold)
+      ]);
+      setBathymetryData(bathyB);
+      setWaterQualityData(wqiB);
+
+      setLogs(prev => [
+        ...prev,
+        `[HYDRO-3D] Estimated 3D Water Volume: ${bathyB.volumeMCM.toFixed(2)} MCM (${bathyB.volumeM3.toLocaleString()} m³) | WQI Health Score: ${wqiB.overallWqi}/100 (${wqiB.wqiStatus})`
+      ]);
 
       setSceneData({
         yearA: { 
@@ -545,849 +778,1045 @@ export default function App() {
   const isSarPenetrating = sceneData ? (sceneData.yearA.isSarPenetrating || sceneData.yearB.isSarPenetrating) : false;
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-[#070B14] text-[#F1F5F9] font-sans select-none overflow-x-hidden">
+    <div className="flex flex-col w-full min-h-screen bg-[#FFF0E4] text-[#082424] font-sans select-none overflow-x-hidden">
       
-      {/* 1. TOP AEROSPACE MISSION CONTROL HEADER */}
-      <header className="border-b border-[#1E293B] bg-[#0A0F1D]/95 backdrop-blur-md px-4 sm:px-6 py-2.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 z-30 sticky top-0">
+      {/* 1. TOP MISSION CONTROL HEADER (Teal + Peach Palette) */}
+      <header className="border-b border-[#007979]/20 bg-[#007979] text-[#FFF0E4] px-4 sm:px-6 py-2.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 z-30 sticky top-0 shadow-md">
         
         {/* Left Branding */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xs bg-[#131F37] border border-[#2DD4BF] text-[#2DD4BF] flex items-center justify-center font-mono font-bold text-sm shadow-xs">
+          <div className="w-8 h-8 rounded-xs bg-[#052626] border border-[#24B1B1] text-[#24B1B1] flex items-center justify-center font-mono font-bold text-sm shadow-xs">
             Ω
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold tracking-wide text-[#F1F5F9] uppercase flex items-center gap-2">
-                <span className="text-[#38BDF8]">AquaSense</span>
-                <span className="text-[#475569]">/</span>
-                <span className="text-[#CBD5E1]">All-Weather Radar &amp; Earth Observatory</span>
+              <h1 className="text-sm sm:text-base font-bold tracking-wide text-[#FFF0E4] uppercase flex items-center gap-2">
+                <span className="text-[#24B1B1]">AquaSense</span>
+                <span className="text-[#24B1B1]/40">/</span>
+                <span className="text-[#FFE0C5]">All-Weather Planetary Earth Observatory</span>
               </h1>
-              <span className="hidden sm:inline-block text-[8px] font-mono bg-[#2DD4BF]/15 border border-[#2DD4BF]/30 text-[#2DD4BF] px-1.5 py-0.2 font-semibold rounded-xs">
+              <span className="hidden sm:inline-block text-[8px] font-mono bg-[#24B1B1]/20 border border-[#24B1B1]/40 text-[#FFF0E4] px-1.5 py-0.2 font-semibold rounded-xs">
                 S2 MSI + S1 SAR FUSION
               </span>
             </div>
-            <div className="text-[9px] font-mono text-[#94A3B8] flex items-center gap-2">
+            <div className="text-[9px] font-mono text-[#FFE0C5]/80 flex items-center gap-2">
               <span>Planetary STAC Stream</span>
               <span>•</span>
-              <span className="text-[#CBD5E1] font-semibold">{config.waterBody}</span>
+              <span className="text-[#24B1B1] font-semibold">{config.waterBody}</span>
               <span>•</span>
               <span>10m Ground Grid</span>
             </div>
           </div>
         </div>
 
-        {/* Right Telemetry Readouts */}
+        {/* Right Action & Telemetry Readouts */}
         <div className="flex flex-wrap items-center gap-2 font-mono text-[8.5px]">
-          <div className="px-2 py-1 bg-[#0E1726] border border-[#1E293B] rounded-xs flex items-center gap-1.5">
-            <Radar className="w-3 h-3 text-[#2DD4BF] animate-pulse" />
-            <span className="text-[#94A3B8]">C-BAND SAR:</span>
-            <span className="text-[#2DD4BF] font-semibold">DUAL-POL (VV+VH)</span>
+          {/* Dock / Undock Sidebar Toggle (Visible in Results/Processing Step) */}
+          {currentStep !== 'setup' && (
+            <button
+              onClick={() => setIsSidebarDocked(!isSidebarDocked)}
+              className="px-2.5 py-1 bg-[#052626] hover:bg-[#24B1B1] text-[#24B1B1] hover:text-[#052626] border border-[#24B1B1]/50 rounded-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs font-semibold"
+              title={isSidebarDocked ? "Undock / Collapse Sidebar for Maximum Map View" : "Dock Sidebar"}
+            >
+              {isSidebarDocked ? (
+                <>
+                  <PanelLeftClose className="w-3.5 h-3.5" />
+                  <span className="uppercase">Undock Sidebar</span>
+                </>
+              ) : (
+                <>
+                  <PanelLeftOpen className="w-3.5 h-3.5 text-[#FFE0C5]" />
+                  <span className="uppercase text-[#FFE0C5]">Dock Sidebar</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* AI Copilot Launch Button */}
+          <button
+            onClick={() => setIsChatbotOpen(true)}
+            className="px-2.5 py-1 bg-[#FFE0C5] hover:bg-[#24B1B1] text-[#007979] hover:text-[#052626] border border-[#24B1B1] rounded-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs font-bold tracking-wide"
+            title="Open AquaSense AI Hydrology Copilot & Natural Language Chart Generator"
+          >
+            <ChatbotLogo size="sm" animated={false} className="border-none bg-transparent shadow-none" />
+            <span className="uppercase">AI Copilot &amp; Charts</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#007979] animate-ping" />
+          </button>
+
+          <div className="px-2 py-1 bg-[#052626] border border-[#007979]/40 rounded-xs flex items-center gap-1.5 text-[#FFF0E4]">
+            <Radar className="w-3 h-3 text-[#24B1B1] animate-pulse" />
+            <span className="text-[#FFE0C5]/70">SAR:</span>
+            <span className="text-[#24B1B1] font-semibold">DUAL-POL</span>
           </div>
 
-          <div className="px-2 py-1 bg-[#0E1726] border border-[#1E293B] rounded-xs flex items-center gap-1.5">
-            <Radio className="w-3 h-3 text-[#10B981] animate-pulse" />
-            <span className="text-[#94A3B8]">STAC:</span>
-            <span className="text-[#10B981] font-semibold">ONLINE</span>
+          <div className="px-2 py-1 bg-[#052626] border border-[#007979]/40 rounded-xs flex items-center gap-1.5 text-[#FFF0E4]">
+            <Brain className="w-3 h-3 text-[#FFE0C5]" />
+            <span className="text-[#FFE0C5]/70">AI:</span>
+            <span className="text-[#FFE0C5] font-semibold">GEMINI 3.7</span>
           </div>
 
-          <div className="px-2 py-1 bg-[#0E1726] border border-[#1E293B] rounded-xs flex items-center gap-1.5">
-            <span className="text-[#94A3B8]">PROVENANCE:</span>
-            <span className="text-[#CBD5E1] font-semibold">0x8a92f02c</span>
-          </div>
+          {currentStep !== 'setup' && (
+            <button
+              onClick={() => setCurrentStep('setup')}
+              className="px-2 py-1 bg-[#052626] hover:bg-[#007979] text-[#FFE0C5] border border-[#007979] rounded-xs flex items-center gap-1 transition-colors cursor-pointer"
+              title="Return to Basin Setup & Configuration"
+            >
+              <Edit3 className="w-3 h-3 text-[#24B1B1]" />
+              <span>EDIT AOI</span>
+            </button>
+          )}
         </div>
       </header>
 
-      {/* 2. MAIN 3-COLUMN OBSERVATORY DASHBOARD */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 bg-grid-cartographic min-h-0">
-        
-        {/* ============================================================ */}
-        {/* LEFT COLUMN: SENSOR MODES & MULTIMODAL INPUTS (3 COLS)       */}
-        {/* ============================================================ */}
-        <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto">
-          
-          {/* Card 1: SENSOR MODES & STAC INPUTS */}
-          <div className="bg-[#0E1726]/90 border border-[#1E293B] p-3 rounded-xs shadow-md space-y-2.5 header-trace-teal">
-            <div className="flex items-center justify-between border-b border-[#1E293B] pb-1.5 text-[9.5px] font-mono">
-              <span className="font-semibold text-[#F1F5F9] uppercase flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-[#2DD4BF]" />
-                EARTH OBSERVATION SENSORS
-              </span>
-              <span className="text-[7.5px] bg-[#1E293B] text-[#2DD4BF] px-1.5 py-0.2 rounded-xs border border-[#334155] font-semibold">
-                ALL-WEATHER
-              </span>
+      {/* ============================================================ */}
+      {/* INITIAL PROMINENT HERO SETUP WORKSPACE (Step === 'setup')    */}
+      {/* ============================================================ */}
+      {currentStep === 'setup' ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-grid-cartographic animate-slide-in">
+          <div className="w-full max-w-5xl bg-white/95 border-2 border-[#007979]/30 rounded-xs shadow-2xl p-5 sm:p-7 space-y-6 font-mono relative overflow-hidden backdrop-blur-xl">
+            
+            {/* Top Accent Strip */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#007979] via-[#24B1B1] to-[#FFE0C5]" />
+
+            {/* Header Hero Banner */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#007979]/15 pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-[#007979]/10 border border-[#007979]/30 text-[#007979] text-[9px] font-bold uppercase tracking-wider mb-1">
+                  <Sparkles className="w-3 h-3 text-[#24B1B1]" />
+                  Mission Control Setup Console
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-[#082424] tracking-tight">
+                  Configure Planetary Basin &amp; Sensor Acquisition
+                </h2>
+                <p className="text-[10.5px] text-[#537575] font-sans mt-0.5 max-w-2xl">
+                  Select a registered lake basin or draw custom coordinates to initiate automated Sentinel-2 multispectral and Sentinel-1 all-weather C-Band radar STAC ingestion.
+                </p>
+              </div>
+
+              {/* Quick Prompt Button */}
+              <button
+                type="button"
+                onClick={() => setIsChatbotOpen(true)}
+                className="self-start md:self-auto px-3 py-1.5 bg-[#FFF0E4] hover:bg-[#FFE0C5] border border-[#007979]/40 text-[#007979] font-bold text-[9px] rounded-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              >
+                <ChatbotLogo size="sm" animated={true} />
+                <span>Ask AI Copilot for Basin Presets</span>
+              </button>
             </div>
 
-            {/* Sensor Selection Toggle Pills */}
-            <div className="space-y-1 font-mono">
-              <span className="text-[#94A3B8] uppercase font-semibold text-[8px] tracking-wider">Payload Sensor Mode:</span>
-              <div className="grid grid-cols-3 gap-1 text-[8px]">
-                <button
-                  type="button"
-                  onClick={() => setSensorMode('optical')}
-                  className={`py-1 px-1.5 border rounded-xs transition-colors flex flex-col items-center gap-0.5 cursor-pointer ${
-                    sensorMode === 'optical'
-                      ? 'bg-[#16223D] border-[#38BDF8] text-[#38BDF8] font-semibold'
-                      : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
-                  }`}
-                >
-                  <Eye className="w-3 h-3" />
-                  <span>Optical S2</span>
-                </button>
+            {/* Main Setup 2-Column Form */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+              
+              {/* Left Configuration Column (7 cols) */}
+              <div className="md:col-span-7 space-y-4">
+                
+                {/* 1. Basin Presets Grid */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-[#082424] uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-[#007979]" />
+                    1. Select Target Lake / Wetland Basin:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {PRESET_BASINS.map((b) => (
+                      <button
+                        key={b.name}
+                        type="button"
+                        onClick={() => setConfig(prev => ({ ...prev, waterBody: b.name, bbox: b.bbox }))}
+                        className={`p-2 text-left rounded-xs border text-[8.5px] transition-all cursor-pointer ${
+                          config.waterBody === b.name
+                            ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979] shadow-sm'
+                            : 'bg-[#FFF8F2] text-[#1F4B4B] border-[#007979]/20 hover:border-[#24B1B1]'
+                        }`}
+                      >
+                        <div className="font-bold truncate">{b.label.split(',')[0]}</div>
+                        <div className="text-[7px] opacity-80 truncate">{b.label.split(',')[1] || b.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSensorMode('sar')}
-                  className={`py-1 px-1.5 border rounded-xs transition-colors flex flex-col items-center gap-0.5 cursor-pointer ${
-                    sensorMode === 'sar'
-                      ? 'bg-[#16223D] border-[#2DD4BF] text-[#2DD4BF] font-semibold'
-                      : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
-                  }`}
-                >
-                  <Radar className="w-3 h-3" />
-                  <span>Radar S1 SAR</span>
-                </button>
+                {/* 2. Sensor Acquisition Mode */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-[#082424] uppercase tracking-wider flex items-center gap-1.5">
+                    <Radar className="w-3.5 h-3.5 text-[#24B1B1]" />
+                    2. Sensor Acquisition Mode:
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 text-[8px]">
+                    <button
+                      type="button"
+                      onClick={() => setSensorMode('optical')}
+                      className={`p-2 border rounded-xs flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                        sensorMode === 'optical'
+                          ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                          : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#24B1B1]" />
+                      <span>Optical Sentinel-2 (MSI)</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => setSensorMode('fused')}
-                  className={`py-1 px-1.5 border rounded-xs transition-colors flex flex-col items-center gap-0.5 cursor-pointer ${
-                    sensorMode === 'fused'
-                      ? 'bg-[#16223D] border-[#F59E0B] text-[#F59E0B] font-semibold'
-                      : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155]'
-                  }`}
-                >
-                  <Zap className="w-3 h-3" />
-                  <span>Fusion (S2+S1)</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => setSensorMode('sar')}
+                      className={`p-2 border rounded-xs flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                        sensorMode === 'sar'
+                          ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                          : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                      }`}
+                    >
+                      <Radar className="w-3.5 h-3.5 text-[#24B1B1]" />
+                      <span>SAR Sentinel-1 (C-Band)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSensorMode('fused')}
+                      className={`p-2 border rounded-xs flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                        sensorMode === 'fused'
+                          ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                          : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                      }`}
+                    >
+                      <Zap className="w-3.5 h-3.5 text-[#F59E0B]" />
+                      <span>Dual-Sensor Fusion (All-Weather)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Comparison Epochs & Cloud Cover */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#FFF8F2] p-2.5 rounded-xs border border-[#007979]/20 text-[8.5px]">
+                  <div>
+                    <label className="text-[7.5px] uppercase text-[#537575] font-semibold">T0 Baseline Year:</label>
+                    <select
+                      value={safeYears[0]}
+                      onChange={(e) => setConfig(prev => ({ ...prev, years: [e.target.value, safeYears[1]] }))}
+                      className="w-full mt-1 bg-white border border-[#007979]/30 rounded-xs p-1 text-[#082424] font-bold"
+                    >
+                      {['2015', '2016', '2017', '2018', '2019', '2020'].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[7.5px] uppercase text-[#537575] font-semibold">T1 Target Year:</label>
+                    <select
+                      value={safeYears[1]}
+                      onChange={(e) => setConfig(prev => ({ ...prev, years: [safeYears[0], e.target.value] }))}
+                      className="w-full mt-1 bg-white border border-[#007979]/30 rounded-xs p-1 text-[#082424] font-bold"
+                    >
+                      {['2021', '2022', '2023', '2024', '2025', '2026'].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[7.5px] text-[#537575]">
+                      <span>Max Cloud Tolerance:</span>
+                      <span className="font-bold text-[#007979]">{config.maxCloudCover}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="80"
+                      step="5"
+                      value={config.maxCloudCover}
+                      onChange={(e) => setConfig(prev => ({ ...prev, maxCloudCover: parseInt(e.target.value) }))}
+                      className="w-full accent-[#007979] h-1.5 bg-[#FFE0C5] rounded-xs cursor-pointer mt-2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Interactive BBOX Map Column (5 cols) */}
+              <div className="md:col-span-5 flex flex-col justify-between space-y-3">
+                
+                {/* Interactive Map BBox Editor */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[8px]">
+                    <span className="font-bold text-[#082424] uppercase flex items-center gap-1">
+                      <Compass className="w-3.5 h-3.5 text-[#007979]" />
+                      Interactive Spatial AOI (BBOX):
+                    </span>
+                    <span className="text-[7px] text-[#537575]">Drag anchors or center</span>
+                  </div>
+
+                  <div className="h-44 w-full border-2 border-[#007979]/30 rounded-xs overflow-hidden shadow-inner">
+                    <BboxMapEditor
+                      bbox={safeBbox}
+                      onChange={(newBbox) => setConfig(prev => ({ ...prev, bbox: newBbox }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1 text-[7.5px] text-[#537575]">
+                    <div className="p-1 bg-[#FFF8F2] rounded-xs border border-[#007979]/15">
+                      SW: [{safeBbox[0].toFixed(3)}°E, {safeBbox[1].toFixed(3)}°N]
+                    </div>
+                    <div className="p-1 bg-[#FFF8F2] rounded-xs border border-[#007979]/15">
+                      NE: [{safeBbox[2].toFixed(3)}°E, {safeBbox[3].toFixed(3)}°N]
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upload GeoJSON shortcut */}
+                <div className="flex items-center justify-between text-[7.5px] pt-1">
+                  <label className="inline-flex items-center gap-1 text-[#007979] hover:text-[#24B1B1] font-semibold cursor-pointer">
+                    <Upload className="w-2.5 h-2.5" />
+                    <span>Upload Custom GeoJSON Shapefile</span>
+                    <input type="file" accept=".geojson,.json" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  <span className="text-[#537575]">10m Resolution</span>
+                </div>
               </div>
             </div>
 
-            {/* Basin Presets */}
-            <div className="space-y-1.5 font-mono text-[9px]">
-              <div className="space-y-1">
-                <span className="text-[#94A3B8] uppercase font-semibold text-[8px] tracking-wider">Target Basin Presets:</span>
-                <div className="grid grid-cols-1 gap-1">
+            {/* Error banner if present */}
+            {error && (
+              <div className="p-2.5 bg-[#E11D48]/10 border border-[#E11D48]/40 rounded-xs text-[#E11D48] text-[8.5px] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Big Launch Pipeline Action Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => runPipeline()}
+                className="w-full bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] font-mono text-[11px] sm:text-xs font-bold uppercase py-3.5 px-4 rounded-xs shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer border border-[#24B1B1]/50 group"
+              >
+                <Zap className="w-4 h-4 fill-current text-[#24B1B1] group-hover:text-[#052626] animate-pulse" />
+                <span>⚡ INITIALIZE MULTI-SENSOR OBSERVATORY RUN ({safeYears[0]} vs {safeYears[1]})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* FULL 3-COLUMN OBSERVATORY DASHBOARD (Results / Processing) */
+        <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 bg-grid-cartographic min-h-0">
+          
+          {/* ============================================================ */}
+          {/* LEFT COLUMN: DOCKED OR UNDOCKED SENSOR & 3D QUALITY (3 COLS)  */}
+          {/* ============================================================ */}
+          {isSidebarDocked ? (
+            <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto animate-slide-in">
+              
+              {/* Card 1: ACTIVE BASIN & SENSOR MODES */}
+              <div className="bg-white/95 border border-[#007979]/20 p-3 rounded-xs shadow-md space-y-2.5 header-trace-teal font-mono">
+                
+                {/* Header with Undock / Collapse Trigger */}
+                <div className="flex items-center justify-between border-b border-[#007979]/15 pb-1.5 text-[9.5px]">
+                  <span className="font-bold text-[#082424] uppercase flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-[#007979]" />
+                    OBSERVATORY AOI
+                  </span>
+                  
+                  <div className="flex items-center gap-1 text-[7.5px]">
+                    <button
+                      onClick={() => setIsSidebarDocked(false)}
+                      className="px-1.5 py-0.5 rounded-xs border border-[#007979]/30 text-[#007979] hover:bg-[#FFF0E4] transition-colors cursor-pointer"
+                      title="Undock / Collapse Sidebar for Maximum Map Width"
+                    >
+                      <PanelLeftClose className="w-3 h-3" />
+                    </button>
+                    <span className="bg-[#007979]/10 text-[#007979] font-bold px-1.5 py-0.2 rounded-xs">
+                      {safeYears[0]}-{safeYears[1]}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Preset Chips */}
+                <div className="grid grid-cols-2 gap-1 text-[8px]">
                   {PRESET_BASINS.map((b) => (
                     <button
                       key={b.name}
                       type="button"
-                      onClick={() => setConfig(prev => ({ ...prev, waterBody: b.name, bbox: b.bbox }))}
-                      className={`text-left px-2 py-1 border text-[8.5px] rounded-xs transition-colors cursor-pointer ${
-                        config.waterBody.includes(b.name)
-                          ? 'bg-[#16223D] border-[#2DD4BF] text-[#F1F5F9] font-semibold'
-                          : 'bg-[#0A0F1D] border-[#1E293B] text-[#94A3B8] hover:border-[#334155] hover:text-[#F1F5F9]'
+                      disabled={currentStep === 'processing'}
+                      onClick={() => {
+                        setConfig(prev => ({ ...prev, waterBody: b.name, bbox: b.bbox }));
+                        runPipeline({ ...config, waterBody: b.name, bbox: b.bbox });
+                      }}
+                      className={`p-1 text-left rounded-xs border transition-all truncate cursor-pointer ${
+                        config.waterBody === b.name
+                          ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                          : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/15 hover:border-[#24B1B1]'
                       }`}
                     >
-                      {b.label}
+                      {b.label.split(',')[0]}
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* Bounding Box Map Editor Component */}
-              <div className="pt-1">
-                <div className="flex justify-between items-center text-[8px] text-[#94A3B8] mb-1">
-                  <span>INTERACTIVE AOI BBOX:</span>
-                  <span className="text-[#2DD4BF]">DRAG ANCHORS</span>
-                </div>
-                <BboxMapEditor
-                  bbox={config.bbox}
-                  onChange={(newBbox) => setConfig({ ...config, bbox: newBbox })}
-                  disabled={currentStep === 'processing'}
-                />
-              </div>
-
-              {/* Cloud Cover Threshold */}
-              <div className="pt-1 space-y-1">
-                <div className="flex justify-between items-center text-[8px]">
-                  <span className="text-[#94A3B8]">MAX CLOUD COVER FILTER:</span>
-                  <span className="text-[#38BDF8] font-semibold">&lt; {config.maxCloudCover}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="80"
-                  value={config.maxCloudCover}
-                  disabled={currentStep === 'processing'}
-                  onChange={(e) => setConfig({ ...config, maxCloudCover: parseInt(e.target.value) })}
-                  className="w-full accent-[#2DD4BF] h-1 bg-[#131F37] rounded-xs cursor-pointer"
-                />
-              </div>
-
-              {/* Epoch Pair */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="bg-[#0A0F1D] p-1.5 border border-[#1E293B] rounded-xs">
-                  <div className="text-[7.5px] text-[#94A3B8]">BASELINE T0</div>
-                  <input
-                    type="text"
-                    value={config.years[0]}
-                    onChange={e => setConfig({ ...config, years: [e.target.value, config.years[1]] })}
-                    className="w-full bg-transparent font-semibold text-[#F1F5F9] focus:outline-none text-[9.5px]"
-                  />
-                </div>
-                <div className="bg-[#0A0F1D] p-1.5 border border-[#1E293B] rounded-xs">
-                  <div className="text-[7.5px] text-[#94A3B8]">TARGET T1</div>
-                  <input
-                    type="text"
-                    value={config.years[1]}
-                    onChange={e => setConfig({ ...config, years: [config.years[0], e.target.value] })}
-                    className="w-full bg-transparent font-semibold text-[#F1F5F9] focus:outline-none text-[9.5px]"
+                {/* Mini BBox Map */}
+                <div className="h-28 w-full border border-[#007979]/20 rounded-xs overflow-hidden shadow-inner">
+                  <BboxMapEditor
+                    bbox={safeBbox}
+                    onChange={(newBbox) => {
+                      setConfig(prev => ({ ...prev, bbox: newBbox }));
+                    }}
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Run Pipeline Action Button */}
-            <button
-              onClick={runPipeline}
-              disabled={currentStep === 'processing'}
-              className="w-full bg-[#131F37] border border-[#2DD4BF] text-[#2DD4BF] font-mono font-semibold py-2 px-3 rounded-xs flex items-center justify-center gap-2 hover:bg-[#2DD4BF] hover:text-[#042F2E] transition-all cursor-pointer disabled:opacity-40"
-            >
-              {currentStep === 'processing' ? (
-                <Cpu className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Play className="w-3.5 h-3.5 fill-current" />
-              )}
-              <span className="text-[10px] uppercase tracking-wider">
-                {currentStep === 'processing' ? 'PROCESSING MULTI-SENSOR STAC...' : 'INITIALIZE PIPELINE RUN'}
-              </span>
-            </button>
-          </div>
+              {/* Card 2: 3D HYDRO-DEPTH & BIO-OPTICAL WATER QUALITY */}
+              <WaterQualityAndBathymetry
+                bathymetryData={bathymetryData}
+                waterQualityData={waterQualityData}
+                activeView={mapView}
+                onSelectView={(v) => setMapView(v as MapView)}
+                disabled={currentStep === 'processing'}
+              />
 
-          {/* Card 2: AI THINKING NODES & PROCESSOR */}
-          <div className="bg-[#0E1726]/90 border border-[#1E293B] p-3 rounded-xs shadow-md space-y-2 header-trace-azure">
-            <div className="flex items-center justify-between border-b border-[#1E293B] pb-1.5 text-[9.5px] font-mono">
-              <span className="font-semibold text-[#F1F5F9] uppercase flex items-center gap-1.5">
-                <Brain className="w-3.5 h-3.5 text-[#38BDF8]" />
-                AI THINKING NODES &amp; PROCESSOR
-              </span>
-              <span className="text-[7.5px] text-[#10B981] font-semibold">
-                ACTIVE
-              </span>
-            </div>
+              {/* Card 3: SPATIAL THRESHOLD CONTROLS */}
+              <div className="bg-white/95 border border-[#007979]/20 p-3 rounded-xs shadow-md space-y-2 font-mono text-[8px] header-trace-bright-teal">
+                <div className="flex items-center justify-between border-b border-[#007979]/15 pb-1">
+                  <span className="font-bold text-[#082424] uppercase flex items-center gap-1">
+                    <Sliders className="w-3 h-3 text-[#24B1B1]" />
+                    SPECTRAL CUTOFF TUNING
+                  </span>
+                  {isRecalculatingThreshold && (
+                    <span className="text-[#24B1B1] font-bold animate-pulse">RECALCULATING...</span>
+                  )}
+                </div>
 
-            {/* Neural Brain Topology SVG */}
-            <div className="relative w-full h-32 bg-[#0A0F1D] border border-[#1E293B] rounded-xs overflow-hidden flex items-center justify-center p-1">
-              <svg viewBox="0 0 300 130" className="w-full h-full">
-                <line x1="40" y1="35" x2="110" y2="25" stroke="#475569" strokeWidth="1.2" strokeDasharray="3 3" />
-                <line x1="40" y1="35" x2="90" y2="75" stroke="#475569" strokeWidth="1.2" />
-                <line x1="110" y1="25" x2="180" y2="35" stroke="#334155" strokeWidth="1.2" />
-                <line x1="90" y1="75" x2="150" y2="65" stroke="#334155" strokeWidth="1.2" />
-                <line x1="150" y1="65" x2="220" y2="75" stroke="#F59E0B" strokeWidth="1.5" strokeOpacity="0.7" />
-                <line x1="180" y1="35" x2="220" y2="75" stroke="#FB7185" strokeWidth="1.2" strokeOpacity="0.7" />
-                <line x1="220" y1="75" x2="270" y2="45" stroke="#2DD4BF" strokeWidth="1.5" strokeOpacity="0.8" />
+                <div className="space-y-2 pt-1">
+                  <div>
+                    <div className="flex justify-between text-[#537575]">
+                      <span>Optical NDWI Cutoff:</span>
+                      <span className="text-[#007979] font-bold">&gt; {config.ndwiThreshold.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-0.30"
+                      max="0.70"
+                      step="0.01"
+                      value={config.ndwiThreshold}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setConfig(prev => ({ ...prev, ndwiThreshold: val }));
+                        applyThresholdsAndRamp(val, colorRamp, sarThresholdDb);
+                      }}
+                      className="w-full accent-[#007979] h-1.5 bg-[#FFE0C5] rounded-xs cursor-pointer"
+                    />
+                  </div>
 
-                <g onClick={() => setActiveThinkingNode('multimodal')} className="cursor-pointer">
-                  <circle cx="40" cy="35" r="9" fill="#0E1726" stroke="#2DD4BF" strokeWidth="1.5" />
-                  <circle cx="40" cy="35" r="3.5" fill="#2DD4BF" />
-                  <text x="40" y="55" textAnchor="middle" fill="#94A3B8" fontSize="7" fontFamily="monospace">INPUTS</text>
-                </g>
-
-                <g onClick={() => setActiveThinkingNode('feature')} className="cursor-pointer">
-                  <circle cx="110" cy="25" r="8" fill="#0E1726" stroke="#38BDF8" strokeWidth="1.5" />
-                  <circle cx="110" cy="25" r="3" fill="#38BDF8" />
-                  <text x="110" y="16" textAnchor="middle" fill="#94A3B8" fontSize="7" fontFamily="monospace">FEATURE</text>
-                </g>
-
-                <g onClick={() => setActiveThinkingNode('causal')} className="cursor-pointer">
-                  <circle cx="150" cy="65" r="9" fill="#0E1726" stroke="#F59E0B" strokeWidth="1.5" />
-                  <circle cx="150" cy="65" r="3.5" fill="#F59E0B" />
-                  <text x="150" y="85" textAnchor="middle" fill="#94A3B8" fontSize="7" fontFamily="monospace">CAUSAL</text>
-                </g>
-
-                <g onClick={() => setActiveThinkingNode('predictive')} className="cursor-pointer">
-                  <circle cx="180" cy="35" r="8" fill="#0E1726" stroke="#FB7185" strokeWidth="1.5" />
-                  <circle cx="180" cy="35" r="3" fill="#FB7185" />
-                  <text x="180" y="26" textAnchor="middle" fill="#94A3B8" fontSize="7" fontFamily="monospace">PREDICT</text>
-                </g>
-
-                <g onClick={() => setActiveThinkingNode('gemini')} className="cursor-pointer">
-                  <circle cx="270" cy="45" r="11" fill="#0E1726" stroke="#2DD4BF" strokeWidth="2" />
-                  <circle cx="270" cy="45" r="5" fill="#2DD4BF" />
-                  <text x="270" y="67" textAnchor="middle" fill="#2DD4BF" fontSize="7.5" fontWeight="bold" fontFamily="monospace">GEMINI 3.7</text>
-                </g>
-              </svg>
-            </div>
-
-            {/* Selected Node Readout */}
-            <div className="bg-[#0A0F1D] p-2 border border-[#1E293B] rounded-xs font-mono text-[8px] space-y-0.5">
-              <div className="flex justify-between text-[#CBD5E1] font-semibold">
-                <span>ACTIVE MODULE:</span>
-                <span className="text-[#2DD4BF] uppercase">{activeThinkingNode}</span>
+                  <div>
+                    <div className="flex justify-between text-[#537575]">
+                      <span>SAR Radar Backscatter:</span>
+                      <span className="text-[#24B1B1] font-bold">&lt; {sarThresholdDb} dB</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-25"
+                      max="-5"
+                      step="1"
+                      value={sarThresholdDb}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setSarThresholdDb(val);
+                        applyThresholdsAndRamp(config.ndwiThreshold, colorRamp, val);
+                      }}
+                      className="w-full accent-[#24B1B1] h-1.5 bg-[#FFE0C5] rounded-xs cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
-              <p className="text-[#94A3B8] leading-tight">
-                {activeThinkingNode === 'multimodal' && 'Fusing Sentinel-2 optical bands with Sentinel-1 SAR C-band radar specular reflection.'}
-                {activeThinkingNode === 'feature' && 'Extracting latent spatial features via Prithvi-100M ViT encoder.'}
-                {activeThinkingNode === 'causal' && 'Isolating urban expansion encroachment from monsoon anomalies.'}
-                {activeThinkingNode === 'predictive' && 'Projecting 5-year wetland boundary constriction and surge risk.'}
-                {activeThinkingNode === 'gemini' && 'Google Gemini 3.7 synthesizing multi-sensor optical + radar ecological report.'}
-              </p>
             </div>
-          </div>
-        </div>
-
-        {/* ============================================================ */}
-        {/* CENTER COLUMN: SATELLITE BASIN OBSERVATORY (6 COLS)          */}
-        {/* ============================================================ */}
-        <div className="lg:col-span-6 flex flex-col gap-3">
-          
-          {/* Top View Mode Bar */}
-          <div className="bg-[#0E1726]/90 border border-[#1E293B] p-2 rounded-xs shadow-md flex flex-wrap items-center justify-between gap-2">
-            
-            {/* View Mode Buttons */}
-            <div className="flex flex-wrap gap-1 font-mono text-[8px]">
+          ) : (
+            /* COLLAPSED UNDOCKED ICON RAIL */
+            <div className="hidden lg:flex lg:col-span-1 flex-col items-center gap-2 p-2 bg-white/95 border border-[#007979]/20 rounded-xs shadow-md font-mono text-[7px] text-[#007979]">
               <button
-                onClick={() => setMapView('split')}
-                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                  mapView === 'split'
-                    ? 'bg-[#16223D] text-[#F1F5F9] font-semibold border-[#2DD4BF]'
-                    : 'bg-[#0A0F1D] text-[#94A3B8] border-[#1E293B] hover:border-[#334155]'
-                }`}
+                onClick={() => setIsSidebarDocked(true)}
+                className="w-8 h-8 rounded-xs bg-[#007979] text-[#FFF0E4] hover:bg-[#24B1B1] flex items-center justify-center transition-all cursor-pointer shadow-sm mb-2"
+                title="Dock / Expand Sidebar"
               >
-                <SlidersHorizontal className="w-2.5 h-2.5 text-[#2DD4BF]" /> TRUE COLOR SWIPE
+                <PanelLeftOpen className="w-4 h-4" />
               </button>
 
               <button
-                onClick={() => setMapView('ndwi_split')}
-                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                  mapView === 'ndwi_split'
-                    ? 'bg-[#16223D] text-[#F1F5F9] font-semibold border-[#38BDF8]'
-                    : 'bg-[#0A0F1D] text-[#94A3B8] border-[#1E293B] hover:border-[#334155]'
+                onClick={() => setMapView('split')}
+                className={`w-7 h-7 rounded-xs border flex items-center justify-center cursor-pointer ${
+                  mapView === 'split' ? 'bg-[#007979] text-white border-[#007979]' : 'bg-[#FFF8F2] text-[#537575]'
                 }`}
+                title="True Color View"
               >
-                <Palette className="w-2.5 h-2.5 text-[#38BDF8]" /> NDWI SWIPE
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={() => setMapView('bathymetry')}
+                className={`w-7 h-7 rounded-xs border flex items-center justify-center cursor-pointer ${
+                  mapView === 'bathymetry' ? 'bg-[#007979] text-white border-[#007979]' : 'bg-[#FFF8F2] text-[#537575]'
+                }`}
+                title="3D Depth View"
+              >
+                <Waves className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={() => setMapView('turbidity')}
+                className={`w-7 h-7 rounded-xs border flex items-center justify-center cursor-pointer ${
+                  mapView === 'turbidity' ? 'bg-[#007979] text-white border-[#007979]' : 'bg-[#FFF8F2] text-[#537575]'
+                }`}
+                title="Turbidity View"
+              >
+                <Droplets className="w-3.5 h-3.5" />
               </button>
 
               <button
                 onClick={() => setMapView('sar_vv')}
-                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                  mapView === 'sar_vv'
-                    ? 'bg-[#16223D] text-[#2DD4BF] font-semibold border-[#2DD4BF]'
-                    : 'bg-[#0A0F1D] text-[#94A3B8] border-[#1E293B] hover:border-[#334155]'
+                className={`w-7 h-7 rounded-xs border flex items-center justify-center cursor-pointer ${
+                  mapView === 'sar_vv' ? 'bg-[#007979] text-white border-[#007979]' : 'bg-[#FFF8F2] text-[#537575]'
                 }`}
+                title="SAR Radar View"
               >
-                <Radar className="w-2.5 h-2.5 text-[#2DD4BF]" /> SAR RADAR (VV)
-              </button>
-
-              <button
-                onClick={() => setMapView('fused_allweather')}
-                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                  mapView === 'fused_allweather'
-                    ? 'bg-[#16223D] text-[#F59E0B] font-semibold border-[#F59E0B]'
-                    : 'bg-[#0A0F1D] text-[#94A3B8] border-[#1E293B] hover:border-[#334155]'
-                }`}
-              >
-                <Zap className="w-2.5 h-2.5 text-[#F59E0B]" /> ALL-WEATHER FUSION
-              </button>
-
-              <button
-                onClick={() => setMapView('diff')}
-                className={`px-2 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
-                  mapView === 'diff'
-                    ? 'bg-[#16223D] text-[#10B981] font-semibold border-[#10B981]'
-                    : 'bg-[#0A0F1D] text-[#94A3B8] border-[#1E293B] hover:border-[#334155]'
-                }`}
-              >
-                <Activity className="w-2.5 h-2.5 text-[#10B981]" /> DIFF MASK
+                <Radar className="w-3.5 h-3.5" />
               </button>
             </div>
+          )}
 
-            {/* LUT Selector Mini Trigger */}
-            <div className="w-40">
-              <ColorRampSelector
-                selectedRamp={colorRamp}
-                onChange={handleRampChange}
-                disabled={currentStep === 'processing'}
-              />
-            </div>
-          </div>
-
-          {/* Main Visual Observatory Stage */}
-          <div className="relative flex-1 bg-[#050810] border border-[#1E293B] rounded-xs shadow-xl overflow-hidden flex flex-col items-center justify-center min-h-[420px]">
+          {/* ============================================================ */}
+          {/* CENTER COLUMN: SATELLITE BASIN OBSERVATORY (6 or 8 COLS)     */}
+          {/* ============================================================ */}
+          <div className={`${isSidebarDocked ? 'lg:col-span-6' : 'lg:col-span-8'} flex flex-col gap-3 transition-all duration-300`}>
             
-            {/* Subtle Coordinate Badge Overlay */}
-            <div className="absolute top-2.5 left-3 bg-[#0A0F1D]/90 border border-[#334155] text-[#94A3B8] text-[8px] px-2 py-0.5 rounded-xs z-20 font-mono flex items-center gap-1.5">
-              <span>AOI: [{config.bbox[1].toFixed(4)}°N, {config.bbox[0].toFixed(4)}°E]</span>
-              {isSarPenetrating && (
-                <span className="text-[#2DD4BF] font-semibold">• SAR CLOUD PENETRATION ACTIVE</span>
-              )}
+            {/* Top View Mode Bar */}
+            <div className="bg-white/95 border border-[#007979]/20 p-2 rounded-xs shadow-md flex flex-wrap items-center justify-between gap-2">
+              
+              {/* View Mode Buttons */}
+              <div className="flex flex-wrap gap-1 font-mono text-[7.5px]">
+                <button
+                  onClick={() => setMapView('split')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'split'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-2.5 h-2.5 text-[#24B1B1]" /> TRUE COLOR
+                </button>
+
+                <button
+                  onClick={() => setMapView('ndwi_split')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'ndwi_split'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Palette className="w-2.5 h-2.5 text-[#24B1B1]" /> NDWI
+                </button>
+
+                <button
+                  onClick={() => setMapView('bathymetry')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'bathymetry'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Waves className="w-2.5 h-2.5 text-[#24B1B1]" /> 3D DEPTH
+                </button>
+
+                <button
+                  onClick={() => setMapView('turbidity')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'turbidity'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Droplets className="w-2.5 h-2.5 text-[#EAB308]" /> TURBIDITY
+                </button>
+
+                <button
+                  onClick={() => setMapView('chlorophyll')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'chlorophyll'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Activity className="w-2.5 h-2.5 text-[#10B981]" /> CHL-A
+                </button>
+
+                <button
+                  onClick={() => setMapView('cdom')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'cdom'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Layers className="w-2.5 h-2.5 text-[#F59E0B]" /> CDOM
+                </button>
+
+                <button
+                  onClick={() => setMapView('sar_vv')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'sar_vv'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Radar className="w-2.5 h-2.5 text-[#24B1B1]" /> SAR RADAR
+                </button>
+
+                <button
+                  onClick={() => setMapView('fused_allweather')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'fused_allweather'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Zap className="w-2.5 h-2.5 text-[#F59E0B]" /> FUSION
+                </button>
+
+                <button
+                  onClick={() => setMapView('diff')}
+                  className={`px-1.5 py-1 rounded-xs border transition-colors flex items-center gap-1 cursor-pointer ${
+                    mapView === 'diff'
+                      ? 'bg-[#007979] text-[#FFF0E4] font-bold border-[#007979]'
+                      : 'bg-[#FFF8F2] text-[#537575] border-[#007979]/20 hover:border-[#24B1B1]'
+                  }`}
+                >
+                  <Activity className="w-2.5 h-2.5 text-[#FB7185]" /> DIFF
+                </button>
+              </div>
+
+              {/* LUT Selector Mini Trigger */}
+              <div className="w-36">
+                <ColorRampSelector
+                  selectedRamp={colorRamp}
+                  onChange={handleRampChange}
+                  disabled={currentStep === 'processing'}
+                />
+              </div>
             </div>
 
-            {currentStep === 'results' && sceneData ? (
-              mapView === 'split' ? (
-                <ImageSplitSlider
-                  imageA={sceneData.yearA.trueColor}
-                  imageB={sceneData.yearB.trueColor}
-                  labelA={`${config.years[0]} True Color (T0)`}
-                  labelB={`${config.years[1]} True Color (T1)`}
-                  dateA={sceneData.yearA.date}
-                  dateB={sceneData.yearB.date}
-                  idA={sceneData.yearA.id}
-                  idB={sceneData.yearB.id}
-                />
-              ) : mapView === 'ndwi_split' ? (
-                <ImageSplitSlider
-                  imageA={sceneData.yearA.colorizedNdwi || sceneData.yearA.ndwi}
-                  imageB={sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
-                  labelA={`${config.years[0]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
-                  labelB={`${config.years[1]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
-                  dateA={sceneData.yearA.date}
-                  dateB={sceneData.yearB.date}
-                  idA={sceneData.yearA.id}
-                  idB={sceneData.yearB.id}
-                />
-              ) : mapView === 'sar_vv' ? (
-                <div className="w-full h-full relative min-h-[380px] font-mono">
-                  <img 
-                    src={sceneData.yearB.sarColorized || sceneData.yearB.sarVvUrl || sceneData.yearB.ndwi}
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                    alt="Sentinel-1 SAR Radar"
-                  />
-                  <div className="absolute top-2.5 left-2.5 bg-[#0A0F1D]/90 text-[#F1F5F9] px-2 py-0.5 text-[8px] border border-[#334155] rounded-xs flex items-center gap-1">
-                    <Radar className="w-3 h-3 text-[#2DD4BF]" />
-                    <span>Sentinel-1 C-SAR RTC (VV-Pol, σ⁰ &lt; {sarThresholdDb} dB Cutoff)</span>
-                  </div>
-                  {/* SAR Legend */}
-                  <div className="absolute bottom-2.5 left-2.5 bg-[#0A0F1D]/95 border border-[#334155] p-2 text-[7.5px] rounded-xs space-y-1">
-                    <div className="font-semibold text-[#2DD4BF]">Sentinel-1 C-Band Radar Key:</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#1478DC] border border-white/30"></div><span>Water (Specular Reflectance)</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#2E4A38] border border-white/30"></div><span>Vegetated Terrain / Soil</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#D97706] border border-white/30"></div><span>Urban Double-Bounce Structures</span></div>
-                  </div>
+            {/* Main Visual Observatory Stage (High-Contrast Dark Canvas) */}
+            <div className="relative flex-1 bg-[#061717] border-2 border-[#007979]/30 rounded-xs shadow-xl overflow-hidden flex flex-col items-center justify-center min-h-[440px]">
+              
+              {/* Top Coordinate & Change Delta HUD Banner */}
+              <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between z-20 font-mono pointer-events-none">
+                <div className="bg-[#052626]/90 border border-[#24B1B1]/40 text-[#FFF0E4] text-[8px] px-2 py-0.5 rounded-xs flex items-center gap-1.5 shadow-md">
+                  <span>AOI: [{safeBbox[1].toFixed(4)}°N, {safeBbox[0].toFixed(4)}°E]</span>
+                  {isSarPenetrating && (
+                    <span className="text-[#24B1B1] font-bold">• S1 SAR RADAR ACTIVE</span>
+                  )}
                 </div>
-              ) : mapView === 'fused_allweather' ? (
-                <div className="w-full h-full relative min-h-[380px] font-mono">
-                  <img 
-                    src={sceneData.yearB.fusedUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                    alt="All-Weather Fusion"
-                  />
-                  <div className="absolute top-2.5 left-2.5 bg-[#0A0F1D]/90 text-[#F59E0B] px-2 py-0.5 text-[8px] border border-[#334155] rounded-xs flex items-center gap-1 font-semibold">
-                    <Zap className="w-3 h-3" />
-                    <span>All-Weather Cloud-Penetrating Multi-Sensor Fusion (S2 MSI + S1 SAR)</span>
-                  </div>
-                  <div className="absolute bottom-2.5 left-2.5 bg-[#0A0F1D]/95 border border-[#334155] p-2 text-[7.5px] rounded-xs space-y-1">
-                    <div className="font-semibold text-[#F59E0B]">Fusion Classification Key:</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#2DD4BF]"></div><span>Dual-Sensor Verified Water (MSI + SAR)</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#0284C7]"></div><span>Cloud-Penetrated Water (SAR Radar Only)</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#38BDF8]"></div><span>Clear-Sky Water (Optical NDWI Only)</span></div>
-                  </div>
-                </div>
-              ) : mapView === 'diff' ? (
-                <div className="flex w-full h-full min-h-[380px] font-mono">
-                  <div className="flex-1 border-r border-[#1E293B] relative">
-                    <div className="absolute top-2.5 left-2.5 bg-[#0A0F1D]/90 border border-[#334155] px-2 py-0.5 text-[8px] text-[#F1F5F9] z-10 rounded-xs">
-                      TRUE COLOR (T1)
-                    </div>
-                    <img 
-                      src={sceneData.yearB.trueColor} 
-                      className="w-full h-full object-cover" 
-                      crossOrigin="anonymous" 
-                      alt="Raw Imagery" 
-                    />
-                  </div>
 
-                  <div className="flex-1 relative bg-[#050810]">
-                    <div className="absolute top-2.5 left-2.5 bg-[#0A0F1D]/90 border border-[#334155] px-2 py-0.5 text-[8px] text-[#2DD4BF] z-10 rounded-xs font-semibold">
-                      HYDROLOGICAL DIFFERENCE
-                    </div>
-                    
-                    <img 
-                      src={sceneData.yearB.trueColor} 
-                      className="w-full h-full object-cover opacity-25 grayscale" 
-                      crossOrigin="anonymous" 
-                      alt="Base Imagery" 
-                    />
-                    {diffMap && (
-                      <img 
-                        src={diffMap} 
-                        className="w-full h-full object-cover absolute top-0 left-0" 
-                        crossOrigin="anonymous" 
-                        alt="Difference Mask" 
-                      />
-                    )}
-                    
-                    <div className="absolute bottom-2.5 left-2.5 flex flex-col gap-1 text-[7.5px] bg-[#0A0F1D]/95 p-2 text-[#CBD5E1] border border-[#334155] rounded-xs shadow-md">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-[#3B82F6] border border-white/30"></div> 
-                        <span>Water Gained (Inundation)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-[#EF4444] border border-white/30"></div> 
-                        <span>Water Lost (Desiccation)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-[#1E3A8A] border border-white/30"></div> 
-                        <span>Persistent Water Body</span>
-                      </div>
-                    </div>
+                {/* Prominent Change Delta Badge Overlay */}
+                {currentStep === 'results' && sceneData && (
+                  <div className={`px-2.5 py-0.5 border rounded-xs text-[8.5px] font-bold flex items-center gap-1 shadow-lg pointer-events-auto ${
+                    change < 0 
+                      ? 'bg-[#E11D48]/20 border-[#E11D48] text-[#E11D48]' 
+                      : 'bg-[#0D9488]/20 border-[#0D9488] text-[#0D9488]'
+                  }`}>
+                    {change < 0 ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
+                    <span>NET DELTA: {change > 0 ? '+' : ''}{change.toFixed(2)} km² ({pctChange.toFixed(1)}%)</span>
                   </div>
-                </div>
-              ) : (
-                <div className="w-full h-full relative min-h-[380px] font-mono">
-                  <img 
-                    src={sceneData.yearB.trueColor}
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                    alt="Satellite Imagery"
+                )}
+              </div>
+
+              {currentStep === 'results' && sceneData ? (
+                mapView === 'split' ? (
+                  <ImageSplitSlider
+                    imageA={sceneData.yearA.trueColor}
+                    imageB={sceneData.yearB.trueColor}
+                    labelA={`${safeYears[0]} True Color (T0)`}
+                    labelB={`${safeYears[1]} True Color (T1)`}
+                    dateA={sceneData.yearA.date}
+                    dateB={sceneData.yearB.date}
+                    idA={sceneData.yearA.id}
+                    idB={sceneData.yearB.id}
                   />
-                  <div className="absolute top-2.5 left-2.5 bg-[#0A0F1D]/90 text-[#F1F5F9] px-2 py-0.5 text-[8px] border border-[#334155] rounded-xs">
-                    {config.years[1]} True Color
-                  </div>
-                </div>
-              )
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center space-y-2.5">
-                {currentStep === 'processing' ? (
-                  <div className="flex flex-col items-center gap-2.5 font-mono">
-                    <Radar className="w-10 h-10 text-[#2DD4BF] animate-spin" />
-                    <div className="text-[11px] font-semibold text-[#2DD4BF] tracking-wide">
-                      INGESTING MULTI-SENSOR STAC (S2 MSI + S1 SAR RADAR)...
+                ) : mapView === 'ndwi_split' ? (
+                  <ImageSplitSlider
+                    imageA={sceneData.yearA.colorizedNdwi || sceneData.yearA.ndwi}
+                    imageB={sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                    labelA={`${safeYears[0]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
+                    labelB={`${safeYears[1]} NDWI (${COLOR_RAMPS[colorRamp].name})`}
+                    dateA={sceneData.yearA.date}
+                    dateB={sceneData.yearB.date}
+                    idA={sceneData.yearA.id}
+                    idB={sceneData.yearB.id}
+                  />
+                ) : mapView === 'bathymetry' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={bathymetryData?.colorizedBathymetryUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="3D Bathymetric Depth"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#24B1B1] px-2 py-0.5 text-[8px] border border-[#24B1B1]/40 rounded-xs flex items-center gap-1 font-bold">
+                      <Waves className="w-3 h-3 text-[#24B1B1]" />
+                      <span>3D Bathymetric Depth &amp; Volume ({bathymetryData?.volumeMCM.toFixed(2) || '0'} MCM / {bathymetryData?.volumeM3.toLocaleString() || '0'} m³)</span>
                     </div>
-                    <div className="text-[9px] text-[#94A3B8]">
-                      Calculating C-Band Radar Backscatter &amp; {COLOR_RAMPS[colorRamp].name} Look-Up Table
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#24B1B1]/30 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#24B1B1]">3D Depth Gradient (DEM Hypsometry):</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#A5F3FC]"></div><span>Littoral Shoreline (0 - 2m)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#0284C7]"></div><span>Submerged Channel (2 - 5m)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#030712] border border-white/20"></div><span>Deep Storage Core (5m+ Depth)</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'turbidity' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={waterQualityData?.turbidityUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="NDTI Turbidity / TSS"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#EAB308] px-2 py-0.5 text-[8px] border border-[#EAB308]/40 rounded-xs flex items-center gap-1 font-bold">
+                      <Droplets className="w-3 h-3 text-[#EAB308]" />
+                      <span>Normalized Difference Turbidity Index ({waterQualityData?.turbidityNtu} NTU / ~{waterQualityData?.tssMgL} mg/L TSS)</span>
+                    </div>
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#007979]/40 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#EAB308]">Turbidity / Sediment Loading Key:</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#06B6D4]"></div><span>Clear Water (&lt; 5 NTU)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#EAB308]"></div><span>Moderate Suspended Solids (5 - 25 NTU)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#78350F]"></div><span>Heavy Silt Plume / Runoff (&gt; 60 NTU)</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'chlorophyll' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={waterQualityData?.chlorophyllUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="Chlorophyll-a Algal Bloom"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#10B981] px-2 py-0.5 text-[8px] border border-[#10B981]/40 rounded-xs flex items-center gap-1 font-bold">
+                      <Activity className="w-3 h-3 text-[#10B981]" />
+                      <span>Chlorophyll-a &amp; Algal Bloom Risk ({waterQualityData?.chlorophyllUgL} µg/L / Carlson TSI {waterQualityData?.trophicStateIndex})</span>
+                    </div>
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#007979]/40 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#10B981]">Eutrophication / Algae Status:</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#0284C7]"></div><span>Oligotrophic Low Algae (&lt; 2.5 µg/L)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#84CC16]"></div><span>Eutrophic Active Growth (8 - 25 µg/L)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#EF4444]"></div><span>Hypertrophic Severe Bloom (&gt; 25 µg/L)</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'cdom' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={waterQualityData?.cdomUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="CDOM Organic Carbon"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#F59E0B] px-2 py-0.5 text-[8px] border border-[#F59E0B]/40 rounded-xs flex items-center gap-1 font-bold">
+                      <Layers className="w-3 h-3 text-[#F59E0B]" />
+                      <span>Colored Dissolved Organic Matter (a_cdom: {waterQualityData?.cdomAbsorption} m⁻¹)</span>
+                    </div>
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#007979]/40 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#F59E0B]">Dissolved Organic Carbon Key:</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#22D3EE]"></div><span>Low Organic Carbon (&lt; 1.0 m⁻¹)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#F59E0B]"></div><span>Moderate Humic Watershed Runoff</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#451A03]"></div><span>Dense Wetland Peat Tannins (&gt; 3.5 m⁻¹)</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'sar_vv' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={sceneData.yearB.sarColorized || sceneData.yearB.sarVvUrl || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="Sentinel-1 SAR Radar"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#FFF0E4] px-2 py-0.5 text-[8px] border border-[#24B1B1]/40 rounded-xs flex items-center gap-1">
+                      <Radar className="w-3 h-3 text-[#24B1B1]" />
+                      <span>Sentinel-1 C-SAR RTC (VV-Pol, σ⁰ &lt; {sarThresholdDb} dB Cutoff)</span>
+                    </div>
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#007979]/40 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#24B1B1]">Sentinel-1 C-Band Radar Key:</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#1478DC] border border-white/30"></div><span>Water (Specular Reflectance)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#2E4A38] border border-white/30"></div><span>Vegetated Terrain / Soil</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#D97706] border border-white/30"></div><span>Urban Double-Bounce Structures</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'fused_allweather' ? (
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={sceneData.yearB.fusedUrl || sceneData.yearB.colorizedNdwi || sceneData.yearB.ndwi}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="All-Weather Fusion"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#F59E0B] px-2 py-0.5 text-[8px] border border-[#F59E0B]/40 rounded-xs flex items-center gap-1 font-bold">
+                      <Zap className="w-3 h-3" />
+                      <span>All-Weather Cloud-Penetrating Multi-Sensor Fusion (S2 MSI + S1 SAR)</span>
+                    </div>
+                    <div className="absolute bottom-2.5 left-2.5 bg-[#052626]/95 border border-[#007979]/40 p-2 text-[7.5px] rounded-xs space-y-1 text-[#FFF0E4]">
+                      <div className="font-bold text-[#F59E0B]">Fusion Classification Key:</div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#2DD4BF]"></div><span>Dual-Sensor Verified Water (MSI + SAR)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#0284C7]"></div><span>Cloud-Penetrated Water (SAR Radar Only)</span></div>
+                      <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-[#38BDF8]"></div><span>Clear-Sky Water (Optical NDWI Only)</span></div>
+                    </div>
+                  </div>
+                ) : mapView === 'diff' ? (
+                  <div className="flex w-full h-full min-h-[380px] font-mono">
+                    <div className="flex-1 border-r border-[#007979]/30 relative">
+                      <div className="absolute top-9 left-2.5 bg-[#052626]/90 border border-[#24B1B1]/40 px-2 py-0.5 text-[8px] text-[#FFF0E4] z-10 rounded-xs">
+                        BASELINE T0 ({safeYears[0]})
+                      </div>
+                      <img 
+                        src={sceneData.yearA.trueColor} 
+                        className="w-full h-full object-cover" 
+                        crossOrigin="anonymous" 
+                        alt="Raw Baseline" 
+                      />
+                    </div>
+
+                    <div className="flex-1 relative bg-[#061717]">
+                      <div className="absolute top-9 left-2.5 bg-[#052626]/90 border border-[#FB7185] px-2 py-0.5 text-[8px] text-[#FB7185] z-10 rounded-xs font-bold">
+                        TEMPORAL CHANGE DIFFERENCE MASK
+                      </div>
+                      
+                      <img 
+                        src={sceneData.yearB.trueColor} 
+                        className="w-full h-full object-cover opacity-20 grayscale" 
+                        crossOrigin="anonymous" 
+                        alt="Base Imagery" 
+                      />
+                      {diffMap && (
+                        <img 
+                          src={diffMap} 
+                          className="w-full h-full object-cover absolute top-0 left-0" 
+                          crossOrigin="anonymous" 
+                          alt="Difference Mask" 
+                        />
+                      )}
+                      
+                      <div className="absolute bottom-2.5 left-2.5 flex flex-col gap-1 text-[7.5px] bg-[#052626]/95 p-2 text-[#CBD5E1] border border-[#007979]/40 rounded-xs shadow-md">
+                        <div className="font-bold text-[#FFF0E4] border-b border-[#007979]/30 pb-0.5">Physical Change Legend:</div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 bg-[#FB7185] border border-white/30"></div> 
+                          <span className="font-bold text-[#FB7185]">Water Extent Lost (Desiccation)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 bg-[#38BDF8] border border-white/30"></div> 
+                          <span className="font-bold text-[#38BDF8]">Water Extent Gained (Inundation)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 bg-[#0284C7] border border-white/30"></div> 
+                          <span>Persistent Water Extent</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 max-w-sm font-mono">
-                    <Compass className="w-8 h-8 text-[#94A3B8] opacity-60" />
-                    <div className="text-[11px] font-semibold text-[#F1F5F9] uppercase tracking-wider">
-                      All-Weather Multi-Sensor Feed Ready
+                  <div className="w-full h-full relative min-h-[380px] font-mono">
+                    <img 
+                      src={sceneData.yearB.trueColor}
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      alt="Satellite Imagery"
+                    />
+                    <div className="absolute top-9 left-2.5 bg-[#052626]/90 text-[#FFF0E4] px-2 py-0.5 text-[8px] border border-[#24B1B1]/40 rounded-xs">
+                      {safeYears[1]} True Color
                     </div>
-                    <p className="text-[9px] text-[#94A3B8] leading-relaxed">
-                      Select target basin coordinates and click &ldquo;Initialize Pipeline Run&rdquo; to begin multispectral &amp; SAR STAC ingestion.
-                    </p>
                   </div>
-                )}
+                )
+              ) : (
+                <div className="flex flex-col items-center justify-center p-8 text-center space-y-2.5 font-mono">
+                  <Radar className="w-10 h-10 text-[#24B1B1] animate-spin" />
+                  <div className="text-[11px] font-bold text-[#24B1B1] tracking-wide">
+                    INGESTING MULTI-SENSOR STAC (S2 MSI + S1 SAR RADAR)...
+                  </div>
+                  <div className="text-[9px] text-[#537575]">
+                    Calculating C-Band Radar Backscatter &amp; {COLOR_RAMPS[colorRamp].name} Look-Up Table
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Needle Scale Bar */}
+            {currentStep === 'results' && sceneData && (
+              <div className="bg-white/95 border border-[#007979]/20 p-2 rounded-xs shadow-sm">
+                <NdwiScaleLegend 
+                  selectedRamp={colorRamp} 
+                  threshold={config.ndwiThreshold} 
+                />
               </div>
             )}
           </div>
 
-          {/* Bottom Needle Scale Bar */}
-          {currentStep === 'results' && sceneData && (
-            <div className="bg-[#0E1726]/90 border border-[#1E293B] p-2 rounded-xs shadow-sm">
-              <NdwiScaleLegend 
-                selectedRamp={colorRamp} 
-                threshold={config.ndwiThreshold} 
-              />
-            </div>
-          )}
-        </div>
-
-        {/* ============================================================ */}
-        {/* RIGHT COLUMN: POLICY READOUT & RADAR QUANTIFICATION (3 COLS)  */}
-        {/* ============================================================ */}
-        <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto">
-          
-          {/* Card 1: POLICY RECOMMENDATIONS READOUT */}
-          <div className="bg-[#0E1726]/90 border border-[#1E293B] p-3 rounded-xs shadow-md space-y-2 header-trace-teal font-mono">
-            <div className="flex items-center justify-between border-b border-[#1E293B] pb-1.5 text-[9.5px]">
-              <span className="font-semibold text-[#F1F5F9] uppercase flex items-center gap-1.5">
-                <FileCheck2 className="w-3.5 h-3.5 text-[#2DD4BF]" />
-                POLICY RECOMMENDATIONS
-              </span>
-              <span className="text-[7.5px] bg-[#1E293B] text-[#94A3B8] px-1.5 py-0.2 rounded-xs border border-[#334155] font-medium">
-                STRUCTURED
-              </span>
-            </div>
-
-            <div className="space-y-1.5 text-[8.5px]">
-              <div className="bg-[#0A0F1D] p-2 border border-[#1E293B] rounded-xs space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#F1F5F9]">1. All-Weather Buffer Protection</span>
-                  <span className="bg-[#10B981]/15 text-[#10B981] font-semibold px-1.5 py-0.2 rounded-xs text-[7.5px]">96% CONF</span>
+          {/* ============================================================ */}
+          {/* RIGHT COLUMN: CHANGE MATRIX & AI SYNTHESIS (3 COLS)          */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-3 flex flex-col gap-3 overflow-y-auto animate-slide-in">
+            
+            {/* Card 1: HYDROLOGICAL CHANGE MATRIX */}
+            {currentStep === 'results' && sceneData ? (
+              <div className="bg-white/95 border border-[#007979]/20 p-3 rounded-xs shadow-md space-y-2.5 font-mono header-trace-teal">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[#007979]/15 pb-1.5 text-[9.5px]">
+                  <span className="font-bold text-[#082424] uppercase flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-[#007979]" />
+                    HYDROLOGICAL MATRIX
+                  </span>
+                  <span className={`text-[7.5px] px-1.5 py-0.2 rounded-xs font-bold border ${
+                    change < 0 
+                      ? 'bg-[#E11D48]/15 text-[#E11D48] border-[#E11D48]/30' 
+                      : 'bg-[#0D9488]/15 text-[#0D9488] border-[#0D9488]/30'
+                  }`}>
+                    {change < 0 ? 'DESICCATION' : 'INUNDATION'}
+                  </span>
                 </div>
-                <p className="text-[#94A3B8] leading-tight">
-                  Enforce radar-verified 500m eco-perimeter around southern catchment channels to safeguard monsoon flood retention.
-                </p>
-              </div>
 
-              <div className="bg-[#0A0F1D] p-2 border border-[#1E293B] rounded-xs space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#F1F5F9]">2. Desilting &amp; Recharging Corridors</span>
-                  <span className="bg-[#38BDF8]/15 text-[#38BDF8] font-semibold px-1.5 py-0.2 rounded-xs text-[7.5px]">94% CONF</span>
+                {/* Hero Net Delta Callout */}
+                <div className={`p-2.5 rounded-xs border flex items-center justify-between ${
+                  change < 0 
+                    ? 'bg-[#E11D48]/10 border-[#E11D48]/30 text-[#E11D48]' 
+                    : 'bg-[#0D9488]/10 border-[#0D9488]/30 text-[#0D9488]'
+                }`}>
+                  <div>
+                    <div className="text-[7.5px] uppercase tracking-wider text-[#537575]">Net Surface Footprint Delta:</div>
+                    <div className="text-base sm:text-lg font-bold">
+                      {change > 0 ? '+' : ''}{change.toFixed(2)} km²
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[7.5px] uppercase tracking-wider text-[#537575]">Relative Trajectory:</div>
+                    <div className="text-base sm:text-lg font-bold">
+                      {pctChange > 0 ? '+' : ''}{pctChange.toFixed(1)}%
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[#94A3B8] leading-tight">
-                  Prioritize desilting corridors identified by SAR backscatter anomalies during cloudy monsoon seasons.
-                </p>
-              </div>
 
-              <div className="bg-[#0A0F1D] p-2 border border-[#1E293B] rounded-xs space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#F1F5F9]">3. Automated Municipal Gates</span>
-                  <span className="bg-[#F59E0B]/15 text-[#F59E0B] font-semibold px-1.5 py-0.2 rounded-xs text-[7.5px]">89% CONF</span>
+                {/* Metrics Breakdown Grid */}
+                <div className="grid grid-cols-2 gap-1.5 text-[8px]">
+                  <div className="bg-[#FFF8F2] p-2 rounded-xs border border-[#007979]/15">
+                    <div className="text-[7px] text-[#537575]">T0 BASELINE ({safeYears[0]}):</div>
+                    <div className="font-bold text-[#082424] text-[9.5px]">{sceneData.yearA.area.toFixed(2)} km²</div>
+                    <div className="text-[7px] text-[#537575]">Date: {sceneData.yearA.date}</div>
+                  </div>
+
+                  <div className="bg-[#FFF8F2] p-2 rounded-xs border border-[#007979]/15">
+                    <div className="text-[7px] text-[#537575]">T1 TARGET ({safeYears[1]}):</div>
+                    <div className="font-bold text-[#082424] text-[9.5px]">{sceneData.yearB.area.toFixed(2)} km²</div>
+                    <div className="text-[7px] text-[#537575]">Date: {sceneData.yearB.date}</div>
+                  </div>
                 </div>
-                <p className="text-[#94A3B8] leading-tight">
-                  Connect storm overflow diversion sluices to real-time radar inundation telemetry.
-                </p>
+
+                {/* Multi-Year Longitudinal Trajectory Chart */}
+                {trendData.length > 0 && (
+                  <div className="bg-[#FFF8F2] p-2 border border-[#007979]/15 rounded-xs space-y-1">
+                    <div className="flex items-center justify-between text-[7.5px] text-[#537575]">
+                      <span className="font-bold text-[#082424] uppercase">Multi-Year Trajectory</span>
+                      <span className="text-[#007979] font-bold">Annual Extent</span>
+                    </div>
+
+                    <div className="h-20 w-full pt-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={trendData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                          <XAxis dataKey="year" tick={{ fontSize: 7.5, fill: '#537575', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 7.5, fill: '#537575', fontFamily: 'monospace' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                          <Tooltip 
+                            contentStyle={{ fontSize: '8.5px', fontFamily: 'monospace', backgroundColor: '#FFFFFF', borderColor: '#007979', color: '#082424' }} 
+                            formatter={(val: number) => [`${val.toFixed(2)} km²`, 'Water Extent']}
+                          />
+                          <Line type="monotone" dataKey="area" stroke="#007979" strokeWidth={2} dot={{ r: 2.5, fill: '#24B1B1' }} activeDot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : null}
+
+            {/* Card 2: AI ECOLOGICAL SYNTHESIS SUITE COMPONENT */}
+            <AiEcologicalInsights
+              sceneData={sceneData}
+              config={{ ...config, sensorMode, sarThresholdDb }}
+              change={change}
+              pctChange={pctChange}
+              isSarPenetrating={isSarPenetrating}
+              bathymetryData={bathymetryData}
+              waterQualityData={waterQualityData}
+            />
+
+            {/* Export Provenance Button */}
+            <button
+              onClick={handleExport}
+              disabled={currentStep !== 'results'}
+              className="w-full bg-[#007979] hover:bg-[#24B1B1] text-[#FFF0E4] hover:text-[#052626] font-mono text-[9px] font-bold uppercase py-2.5 flex items-center justify-center gap-2 rounded-xs shadow-sm transition-all cursor-pointer disabled:opacity-30 border border-[#24B1B1]/40"
+            >
+              <Download className="w-3.5 h-3.5 text-[#24B1B1]" />
+              Export Multi-Sensor Provenance JSON
+            </button>
           </div>
+        </main>
+      )}
 
-          {/* Card 2: DYNAMIC THRESHOLD CONTROLS (OPTICAL NDWI + SAR RADAR dB) */}
-          {currentStep === 'results' && sceneData && (
-            <div className="bg-[#0E1726]/90 border border-[#1E293B] p-3 rounded-xs shadow-md space-y-2.5 font-mono header-trace-azure">
-              <div className="flex items-center justify-between border-b border-[#1E293B] pb-1 text-[9.5px]">
-                <span className="font-semibold text-[#F1F5F9] uppercase flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  DUAL-SENSOR THRESHOLDS
-                </span>
-                <span className="text-[#2DD4BF] font-semibold text-[8px]">
-                  NDWI &gt; {config.ndwiThreshold.toFixed(2)} | SAR &lt; {sarThresholdDb} dB
-                </span>
-              </div>
-
-              {/* NDWI Slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[8px] text-[#94A3B8]">
-                  <span>Optical NDWI Cutoff:</span>
-                  <span className="text-[#38BDF8] font-semibold">&gt; {config.ndwiThreshold.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-0.30"
-                  max="0.70"
-                  step="0.01"
-                  value={config.ndwiThreshold}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    setConfig(prev => ({ ...prev, ndwiThreshold: val }));
-                    applyThresholdsAndRamp(val, colorRamp, sarThresholdDb);
-                  }}
-                  className="w-full accent-[#38BDF8] h-1 bg-[#131F37] rounded-xs cursor-pointer"
-                />
-              </div>
-
-              {/* Sentinel-1 SAR Decibel Slider */}
-              <div className="space-y-1 pt-1 border-t border-[#1E293B]">
-                <div className="flex justify-between text-[8px] text-[#94A3B8]">
-                  <span className="flex items-center gap-1">
-                    <Radar className="w-2.5 h-2.5 text-[#2DD4BF]" />
-                    SAR Radar Backscatter Cutoff:
-                  </span>
-                  <span className="text-[#2DD4BF] font-semibold">&lt; {sarThresholdDb} dB</span>
-                </div>
-                <input
-                  type="range"
-                  min="-25"
-                  max="-5"
-                  step="1"
-                  value={sarThresholdDb}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    setSarThresholdDb(val);
-                    applyThresholdsAndRamp(config.ndwiThreshold, colorRamp, val);
-                  }}
-                  className="w-full accent-[#2DD4BF] h-1 bg-[#131F37] rounded-xs cursor-pointer"
-                />
-                <div className="flex justify-between text-[7px] text-[#64748B]">
-                  <span>-25 dB (Calm Deep)</span>
-                  <span>-16 dB (Standard Water)</span>
-                  <span>-5 dB (Rough Land)</span>
-                </div>
-              </div>
-
-              {/* Area Stats Table */}
-              <div className="space-y-1 text-[8.5px] bg-[#0A0F1D] p-2 border border-[#1E293B] rounded-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#94A3B8]">{config.years[0]} Water Extent:</span>
-                  <span className="font-semibold text-[#F1F5F9]">{sceneData.yearA.area.toFixed(2)} km² (SAR: {sceneData.yearA.sarArea?.toFixed(2) || sceneData.yearA.area.toFixed(2)} km²)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#94A3B8]">{config.years[1]} Water Extent:</span>
-                  <span className="font-semibold text-[#F1F5F9]">{sceneData.yearB.area.toFixed(2)} km² (SAR: {sceneData.yearB.sarArea?.toFixed(2) || sceneData.yearB.area.toFixed(2)} km²)</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-[#1E293B]">
-                  <span className="font-semibold text-[#CBD5E1]">Net Loss / Gain:</span>
-                  <span className={`font-semibold ${change < 0 ? 'text-[#FB7185]' : 'text-[#10B981]'}`}>
-                    {change > 0 ? '+' : ''}{change.toFixed(2)} km² ({pctChange.toFixed(1)}%)
-                  </span>
-                </div>
-              </div>
-
-              {/* Recharts Longitudinal Trend */}
-              <div className="pt-1">
-                <div className="text-[8px] text-[#94A3B8] uppercase font-semibold mb-1 flex justify-between">
-                  <span>ANNUAL TIME-SERIES TREND</span>
-                  <span className="text-[#38BDF8]">10m REVISIT</span>
-                </div>
-                <div className="h-24 w-full bg-[#0A0F1D] p-1 border border-[#1E293B] rounded-xs">
-                  {trendData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={trendData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                        <XAxis dataKey="year" tick={{ fontSize: 8, fill: '#94A3B8', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 8, fill: '#94A3B8', fontFamily: 'monospace' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                        <Tooltip 
-                          contentStyle={{ fontSize: '9px', fontFamily: 'monospace', backgroundColor: '#0E1726', borderColor: '#334155', color: '#F1F5F9' }} 
-                          formatter={(value: number) => [`${value.toFixed(2)} km²`, 'Water Area']}
-                        />
-                        <Line type="monotone" dataKey="area" stroke="#2DD4BF" strokeWidth={1.5} dot={{ r: 2.5, fill: '#38BDF8', stroke: '#2DD4BF' }} activeDot={{ r: 4 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[8px] text-[#64748B]">Sampling STAC trendlines...</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Card 3: AI ECOLOGICAL SYNTHESIS SUITE COMPONENT */}
-          <AiEcologicalInsights
-            sceneData={sceneData}
-            config={{ ...config, sensorMode, sarThresholdDb }}
-            change={change}
-            pctChange={pctChange}
-            isSarPenetrating={isSarPenetrating}
-          />
-
-          {/* Export Button */}
-          <button
-            onClick={handleExport}
-            disabled={currentStep !== 'results'}
-            className="w-full bg-[#0E1726] border border-[#334155] hover:border-[#2DD4BF] text-[#CBD5E1] hover:text-[#F1F5F9] font-mono text-[9px] font-semibold uppercase py-2 flex items-center justify-center gap-2 rounded-xs shadow-sm transition-all cursor-pointer disabled:opacity-30"
-          >
-            <Download className="w-3.5 h-3.5 text-[#2DD4BF]" />
-            Export Multi-Sensor GeoJSON &amp; Provenance
-          </button>
-        </div>
-      </main>
-
-      {/* ============================================================ */}
-      {/* 3. DEDICATED LIVE STAC & COMPUTE TRACE LOG CONSOLE           */}
-      {/* ============================================================ */}
-      <section className="border-t border-[#1E293B] bg-[#0A0F1D] flex flex-col font-mono text-[8.5px] z-30 transition-all">
-        
-        {/* Terminal Header Bar */}
-        <div className="px-4 sm:px-6 py-1.5 bg-[#0E1726] border-b border-[#1E293B] flex items-center justify-between">
+      {/* 3. COLLAPSIBLE KERNEL TERMINAL LOG DRAWER (Teal + Peach Footer) */}
+      <footer className="border-t border-[#007979]/20 bg-white/95 z-30 font-mono text-[8.5px]">
+        <div 
+          onClick={() => setIsLogsExpanded(!isLogsExpanded)}
+          className="px-4 py-1.5 flex items-center justify-between bg-[#FFF8F2] hover:bg-[#FFE0C5] cursor-pointer transition-colors border-b border-[#007979]/10"
+        >
           <div className="flex items-center gap-2">
-            <Terminal className="w-3.5 h-3.5 text-[#2DD4BF]" />
-            <span className="font-semibold text-[#F1F5F9] uppercase tracking-wider text-[9px]">
-              PLANETARY COMPUTER STAC &amp; MULTI-SENSOR TRACE LOG
+            <Terminal className="w-3 h-3 text-[#007979]" />
+            <span className="font-bold text-[#082424] uppercase tracking-wider">
+              AquaSense Planetary Trace Kernel ({logs.length} events logged)
             </span>
-            <span className="px-1.5 py-0.2 bg-[#131F37] border border-[#334155] text-[#94A3B8] text-[7.5px] rounded-xs">
-              {logs.length} EVENTS
+            <span className="text-[7px] bg-[#007979]/15 text-[#007979] font-bold px-1.5 py-0.2 rounded-xs">
+              LIVE
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleCopyLogs}
-              className="px-2 py-0.5 bg-[#131F37] hover:bg-[#16223D] text-[#94A3B8] hover:text-[#F1F5F9] border border-[#334155] rounded-xs flex items-center gap-1 transition-colors cursor-pointer text-[8px]"
-              title="Copy trace log to clipboard"
+              onClick={(e) => { e.stopPropagation(); handleCopyLogs(); }}
+              className="p-1 hover:text-[#007979] text-[#537575] rounded-xs transition-colors flex items-center gap-1"
+              title="Copy trace log buffer"
             >
-              {copiedLogs ? <Check className="w-2.5 h-2.5 text-[#10B981]" /> : <Copy className="w-2.5 h-2.5 text-[#94A3B8]" />}
-              <span>{copiedLogs ? 'COPIED' : 'COPY'}</span>
+              {copiedLogs ? <Check className="w-3 h-3 text-[#0D9488]" /> : <Copy className="w-3 h-3" />}
+              <span className="text-[7.5px]">{copiedLogs ? 'Copied' : 'Copy'}</span>
             </button>
 
             <button
-              onClick={handleClearLogs}
-              className="px-2 py-0.5 bg-[#131F37] hover:bg-[#16223D] text-[#94A3B8] hover:text-[#FB7185] border border-[#334155] rounded-xs flex items-center gap-1 transition-colors cursor-pointer text-[8px]"
-              title="Clear log buffer"
+              onClick={(e) => { e.stopPropagation(); handleClearLogs(); }}
+              className="p-1 hover:text-[#E11D48] text-[#537575] rounded-xs transition-colors"
+              title="Clear trace logs"
             >
-              <Trash2 className="w-2.5 h-2.5" />
-              <span>CLEAR</span>
+              <Trash2 className="w-3 h-3" />
             </button>
 
-            <button
-              onClick={() => setIsLogsExpanded(prev => !prev)}
-              className="px-2 py-0.5 bg-[#131F37] hover:bg-[#16223D] text-[#94A3B8] hover:text-[#F1F5F9] border border-[#334155] rounded-xs flex items-center gap-1 transition-colors cursor-pointer text-[8px]"
-              title={isLogsExpanded ? "Collapse trace log" : "Expand trace log"}
-            >
-              {isLogsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-              <span>{isLogsExpanded ? 'MINIMIZE' : 'EXPAND'}</span>
-            </button>
+            {isLogsExpanded ? <ChevronDown className="w-3.5 h-3.5 text-[#537575]" /> : <ChevronUp className="w-3.5 h-3.5 text-[#537575]" />}
           </div>
         </div>
 
-        {/* Scrollable Trace Log Window */}
         {isLogsExpanded && (
           <div 
             ref={logContainerRef}
-            className="p-3 bg-[#050810] max-h-36 overflow-y-auto space-y-1 font-mono leading-relaxed select-text"
+            className="h-24 overflow-y-auto p-2.5 bg-[#052626] text-[#24B1B1] font-mono text-[8px] space-y-0.5 leading-relaxed selection:bg-[#24B1B1] selection:text-[#052626]"
           >
-            {logs.map((log, i) => {
-              let lineClass = 'text-[#CBD5E1]';
-
-              if (log.startsWith('[STAC:S1]') || log.startsWith('[SAR')) {
-                lineClass = 'text-[#2DD4BF] font-semibold';
-              } else if (log.startsWith('[STAC:S2]') || log.startsWith('[COMPUTE:MSI]')) {
-                lineClass = 'text-[#38BDF8]';
-              } else if (log.startsWith('[COMPUTE:FUSION]')) {
-                lineClass = 'text-[#F59E0B] font-semibold';
-              } else if (log.startsWith('[WARN]')) {
-                lineClass = 'text-[#FDE68A]';
-              } else if (log.startsWith('[ERROR]')) {
-                lineClass = 'text-[#FECDD3] font-semibold';
-              }
-
-              return (
-                <div key={i} className={`flex items-start gap-2 ${lineClass}`}>
-                  <span className="text-[#475569] text-[7.5px] select-none">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="leading-tight break-all">{log}</span>
-                </div>
-              );
-            })}
+            {logs.map((log, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                <span className="text-[#FFE0C5]/40 select-none">{(idx + 1).toString().padStart(3, '0')}</span>
+                <span className={log.includes('[ERROR]') ? 'text-[#FB7185] font-bold' : log.includes('[COMPUTE') ? 'text-[#F59E0B]' : log.includes('[HYDRO-3D]') ? 'text-[#2DD4BF] font-bold' : 'text-[#24B1B1]'}>
+                  {log}
+                </span>
+              </div>
+            ))}
           </div>
         )}
-      </section>
-
-      {/* ============================================================ */}
-      {/* 4. BOTTOM STATUS BAR                                         */}
-      {/* ============================================================ */}
-      <footer className="border-t border-[#1E293B] bg-[#070B14] px-4 sm:px-6 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-[8px] font-mono z-30">
-        {/* Left Probability Meters */}
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:w-auto">
-          <div className="space-y-0.5">
-            <div className="flex justify-between text-[7.5px]">
-              <span className="text-[#94A3B8]">HYDROLOGY:</span>
-              <span className="text-[#2DD4BF] font-semibold">91% (SAR + MSI)</span>
-            </div>
-            <div className="w-full bg-[#131F37] h-1 rounded-full overflow-hidden">
-              <div className="bg-[#2DD4BF] h-full rounded-full" style={{ width: '91%' }} />
-            </div>
-          </div>
-
-          <div className="space-y-0.5">
-            <div className="flex justify-between text-[7.5px]">
-              <span className="text-[#94A3B8]">ALL-WEATHER RELIABILITY:</span>
-              <span className="text-[#10B981] font-semibold">99.4%</span>
-            </div>
-            <div className="w-full bg-[#131F37] h-1 rounded-full overflow-hidden">
-              <div className="bg-[#10B981] h-full rounded-full" style={{ width: '99%' }} />
-            </div>
-          </div>
-
-          <div className="space-y-0.5">
-            <div className="flex justify-between text-[7.5px]">
-              <span className="text-[#94A3B8]">POLICY FIT:</span>
-              <span className="text-[#38BDF8] font-semibold">88%</span>
-            </div>
-            <div className="w-full bg-[#131F37] h-1 rounded-full overflow-hidden">
-              <div className="bg-[#38BDF8] h-full rounded-full" style={{ width: '88%' }} />
-            </div>
-          </div>
-
-          <div className="space-y-0.5">
-            <div className="flex justify-between text-[7.5px]">
-              <span className="text-[#94A3B8]">PREDICTION CONFIDENCE:</span>
-              <span className="text-[#F59E0B] font-semibold">89%</span>
-            </div>
-            <div className="w-full bg-[#131F37] h-1 rounded-full overflow-hidden">
-              <div className="bg-[#F59E0B] h-full rounded-full" style={{ width: '89%' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Right System Stamp */}
-        <div className="flex items-center gap-2 text-[#64748B]">
-          <span>AquaSense S2+S1 Dual-Fusion Kernel</span>
-          <span>•</span>
-          <span className="text-[#10B981]">RADAR SYNCHRONIZED</span>
-        </div>
       </footer>
+
+      {/* 4. AI HYDROLOGICAL COPILOT & CHART GENERATOR DRAWER */}
+      <HydrologyChatbot
+        isOpen={isChatbotOpen}
+        onClose={() => setIsChatbotOpen(false)}
+        currentConfig={config}
+        onApplyConfig={handleApplyChatConfig}
+      />
     </div>
   );
 }

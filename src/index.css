@@ -5,28 +5,31 @@
   --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Space Mono', 'Consolas', monospace;
   
-  /* Hydrologic Mission Control Slate Palette */
-  --color-canvas: #070B14;
-  --color-surface-base: #0A0F1D;
-  --color-surface-container: #0E1726;
-  --color-surface-elevated: #16223D;
-  --color-surface-high: #1E2D4A;
+  /* Curated Palette: Teal + Peach + Sea */
+  --color-canvas-peach: #FFF0E4;
+  --color-peach-light: #FFF8F2;
+  --color-peach-warm: #FFE0C5;
+  --color-peach-dark: #FAD0B0;
   
-  --color-hydro-teal: #2DD4BF;
-  --color-sky-azure: #38BDF8;
-  --color-solar-amber: #F59E0B;
-  --color-desiccation-coral: #FB7185;
-  --color-emerald-safe: #10B981;
+  --color-teal-primary: #007979;
+  --color-teal-bright: #24B1B1;
+  --color-teal-glow: #38C7C7;
+  --color-teal-dark: #074747;
+  --color-teal-deep: #052626;
+
+  --color-solar-amber: #D97706;
+  --color-desiccation-coral: #E11D48;
+  --color-emerald-safe: #0D9488;
   
-  --color-text-primary: #F1F5F9;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #94A3B8;
-  --color-border-subtle: rgba(148, 163, 184, 0.18);
-  --color-border-focus: rgba(45, 212, 191, 0.4);
+  --color-text-primary: #082424;
+  --color-text-secondary: #1F4B4B;
+  --color-text-muted: #537575;
+  --color-border-subtle: rgba(0, 121, 121, 0.18);
+  --color-border-focus: rgba(36, 177, 177, 0.5);
 }
 
 body {
-  background-color: var(--color-canvas);
+  background-color: var(--color-canvas-peach);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -39,70 +42,83 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Glassmorphic Mission Control Panels */
+/* Warm Cartographic Grid Background Pattern */
+.bg-grid-cartographic {
+  background-image: 
+    linear-gradient(to right, rgba(0, 121, 121, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 121, 121, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Glassmorphic Panels with Warm Peach + Teal Accents */
 .mission-card {
-  background: rgba(14, 23, 38, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 121, 121, 0.18);
   border-radius: 4px;
 }
 
 .mission-card:hover {
-  border-color: rgba(148, 163, 184, 0.28);
+  border-color: rgba(36, 177, 177, 0.45);
 }
 
 .mission-card-focus {
-  border-color: rgba(45, 212, 191, 0.4);
-  box-shadow: 0 0 12px rgba(45, 212, 191, 0.08);
+  border-color: #24B1B1;
+  box-shadow: 0 0 16px rgba(36, 177, 177, 0.18);
 }
 
-/* Subtle Technical Outlines */
-.border-titanium {
-  border-color: rgba(148, 163, 184, 0.18);
+/* Dark Observatory Canvas Theme for Satellite Imagery */
+.observatory-dark-stage {
+  background: #061717;
+  border: 1px solid rgba(0, 121, 121, 0.35);
 }
 
-.border-titanium-hover:hover {
-  border-color: rgba(148, 163, 184, 0.35);
-}
-
-/* Scientific Cartographic Grid Background Pattern */
-.bg-grid-cartographic {
-  background-image: 
-    linear-gradient(to right, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-/* Header Top Accent Trace */
+/* Header Accent Traces */
 .header-trace-teal {
-  border-top: 2px solid #2DD4BF;
+  border-top: 3px solid #007979;
 }
 
-.header-trace-azure {
-  border-top: 2px solid #38BDF8;
+.header-trace-bright-teal {
+  border-top: 3px solid #24B1B1;
 }
 
-.header-trace-amber {
-  border-top: 2px solid #F59E0B;
+.header-trace-peach {
+  border-top: 3px solid #F59E0B;
 }
 
 .header-trace-coral {
-  border-top: 2px solid #FB7185;
+  border-top: 3px solid #E11D48;
 }
 
-/* Custom Mission Control Scrollbar */
+/* Smooth layout transition keyframes */
+@keyframes slideInFromCenter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromCenter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar in Teal & Peach */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #070B14;
+  background: #FFF0E4;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
-  border-radius: 2px;
+  background: rgba(0, 121, 121, 0.28);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(45, 212, 191, 0.5);
+  background: #24B1B1;
 }

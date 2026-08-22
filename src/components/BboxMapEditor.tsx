@@ -296,30 +296,30 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             }}
           />
 
-          {/* Edge Midpoints */}
+          {/* 4 Edge Center Grippers */}
           <div
-            className="absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#2DD4BF] rounded-xs cursor-ns-resize z-20"
+            className="absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#007979] rounded-xs cursor-ns-resize z-20 border border-white"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('n', e.clientX, e.clientY);
             }}
           />
           <div
-            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#2DD4BF] rounded-xs cursor-ns-resize z-20"
+            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-1.5 bg-[#007979] rounded-xs cursor-ns-resize z-20 border border-white"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('s', e.clientX, e.clientY);
             }}
           />
           <div
-            className="absolute top-1/2 -right-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#2DD4BF] rounded-xs cursor-ew-resize z-20"
+            className="absolute top-1/2 -right-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#007979] rounded-xs cursor-ew-resize z-20 border border-white"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('e', e.clientX, e.clientY);
             }}
           />
           <div
-            className="absolute top-1/2 -left-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#2DD4BF] rounded-xs cursor-ew-resize z-20"
+            className="absolute top-1/2 -left-1 -translate-y-1/2 w-1.5 h-3.5 bg-[#007979] rounded-xs cursor-ew-resize z-20 border border-white"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDragStart('w', e.clientX, e.clientY);
@@ -328,17 +328,17 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
         </div>
 
         {/* Live Coordinate Badge */}
-        <div className="absolute top-1.5 left-1.5 bg-[#0E1726]/90 border border-[#334155] text-[#94A3B8] text-[7.5px] px-2 py-0.5 pointer-events-none z-30 font-mono rounded-xs">
+        <div className="absolute top-1.5 left-1.5 bg-white/95 border border-[#007979]/30 text-[#082424] text-[7.5px] px-2 py-0.5 pointer-events-none z-30 font-mono rounded-xs shadow-xs font-bold">
           AOI: [{minLat.toFixed(3)}°N, {minLon.toFixed(3)}°E] → [{maxLat.toFixed(3)}°N, {maxLon.toFixed(3)}°E]
         </div>
 
         {/* Floating Zoom Controls */}
-        <div className="absolute top-1.5 right-1.5 flex flex-col bg-[#0E1726]/90 border border-[#334155] z-30 divide-y divide-[#334155] rounded-xs">
+        <div className="absolute top-1.5 right-1.5 flex flex-col bg-white/95 border border-[#007979]/30 z-30 divide-y divide-[#007979]/20 rounded-xs shadow-xs">
           <button
             type="button"
             onClick={handleZoomIn}
             disabled={disabled || zoom >= 5.0}
-            className="p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors disabled:opacity-30 cursor-pointer"
+            className="p-1 text-[#537575] hover:text-[#007979] hover:bg-[#FFE0C5]/50 transition-colors disabled:opacity-30 cursor-pointer"
             title="Zoom In"
           >
             <ZoomIn className="w-3 h-3" />
@@ -347,7 +347,7 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             type="button"
             onClick={handleZoomOut}
             disabled={disabled || zoom <= 0.4}
-            className="p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors disabled:opacity-30 cursor-pointer"
+            className="p-1 text-[#537575] hover:text-[#007979] hover:bg-[#FFE0C5]/50 transition-colors disabled:opacity-30 cursor-pointer"
             title="Zoom Out"
           >
             <ZoomOut className="w-3 h-3" />
@@ -356,7 +356,7 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
             type="button"
             onClick={handleResetZoom}
             disabled={disabled || zoom === 1.0}
-            className={`p-1 text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#16223D] transition-colors cursor-pointer ${
+            className={`p-1 text-[#537575] hover:text-[#007979] hover:bg-[#FFE0C5]/50 transition-colors cursor-pointer ${
               zoom === 1.0 ? 'opacity-30' : 'opacity-100'
             }`}
             title="Reset Zoom"
@@ -367,57 +367,57 @@ export function BboxMapEditor({ bbox, onChange, disabled = false }: BboxMapEdito
       </div>
 
       {/* Numerical Coordinate Fine-Tuning Grid */}
-      <div className="bg-[#0A0F1D] border border-[#1E293B] p-2 text-[8.5px] rounded-xs">
+      <div className="bg-[#FFF8F2] border border-[#007979]/20 p-2 text-[8.5px] rounded-xs font-mono">
         <div className="flex items-center justify-between mb-1">
-          <span className="font-semibold uppercase text-[7.5px] text-[#94A3B8] tracking-wider">Bounding Coordinates (WGS84)</span>
+          <span className="font-bold uppercase text-[7.5px] text-[#537575] tracking-wider">Bounding Coordinates (WGS84)</span>
           <button
             type="button"
             onClick={handleResetBbox}
-            className="text-[7.5px] text-[#2DD4BF] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+            className="text-[7.5px] text-[#007979] hover:underline flex items-center gap-1 cursor-pointer font-bold"
             title="Reset coordinates"
           >
             <RotateCcw className="w-2.5 h-2.5" /> Reset
           </button>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
-          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
-            <span className="text-[#94A3B8] text-[7.5px]">MIN LON:</span>
+          <div className="flex items-center justify-between bg-white px-2 py-0.5 border border-[#007979]/20 rounded-xs">
+            <span className="text-[#537575] text-[7.5px]">MIN LON:</span>
             <input
               type="number"
               step="0.001"
               value={minLon}
               onChange={(e) => handleManualCoordChange(0, e.target.value)}
-              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
+              className="w-14 text-right font-bold text-[#082424] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
-            <span className="text-[#94A3B8] text-[7.5px]">MIN LAT:</span>
+          <div className="flex items-center justify-between bg-white px-2 py-0.5 border border-[#007979]/20 rounded-xs">
+            <span className="text-[#537575] text-[7.5px]">MIN LAT:</span>
             <input
               type="number"
               step="0.001"
               value={minLat}
               onChange={(e) => handleManualCoordChange(1, e.target.value)}
-              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
+              className="w-14 text-right font-bold text-[#082424] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
-            <span className="text-[#94A3B8] text-[7.5px]">MAX LON:</span>
+          <div className="flex items-center justify-between bg-white px-2 py-0.5 border border-[#007979]/20 rounded-xs">
+            <span className="text-[#537575] text-[7.5px]">MAX LON:</span>
             <input
               type="number"
               step="0.001"
               value={maxLon}
               onChange={(e) => handleManualCoordChange(2, e.target.value)}
-              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
+              className="w-14 text-right font-bold text-[#082424] bg-transparent focus:outline-none"
             />
           </div>
-          <div className="flex items-center justify-between bg-[#131F37] px-2 py-0.5 border border-[#334155] rounded-xs">
-            <span className="text-[#94A3B8] text-[7.5px]">MAX LAT:</span>
+          <div className="flex items-center justify-between bg-white px-2 py-0.5 border border-[#007979]/20 rounded-xs">
+            <span className="text-[#537575] text-[7.5px]">MAX LAT:</span>
             <input
               type="number"
               step="0.001"
               value={maxLat}
               onChange={(e) => handleManualCoordChange(3, e.target.value)}
-              className="w-14 text-right font-medium text-[#F1F5F9] bg-transparent focus:outline-none"
+              className="w-14 text-right font-bold text-[#082424] bg-transparent focus:outline-none"
             />
           </div>
         </div>
