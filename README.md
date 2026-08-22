@@ -82,6 +82,14 @@
 
 ---
 
+### 🖥️ Local Hydrological RAG & 12-D Spectral Classifier
+A sovereign, cloud-free intelligence path that runs entirely in-process with deterministic latency (no GPU/cloud dependency):
+- **12-Dimensional Spectral Feature Extractor** (`ml/encoders/spectral_12d.ts`): derives `B02, B03, B04, B08, NDWI, MNDWI, NDTI, NDCI, VV, VH, ΔDEM, WQI` from multi-sensor band physics and implements the `EOEncoder` interface (now the default encoder).
+- **Few-Shot Classifier** (`ml/classifiers/few_shot.ts`): logistic-regression head trained on physically-grounded water / wetland / built_up reference prototypes, predicting per-patch land-cover.
+- **Local RAG Engine** (`backend/rag/`): an in-memory TF-IDF vector store over statutory/scientific knowledge (Ramsar, CPCB Classes A–E, WHO turbidity, Carlson TSI, NDTI/NDCI bio-optics, ERA5 monsoon, regional basins) with cosine top-K retrieval and a structured on-device synthesizer.
+- **Endpoints**: `POST /api/ai/spectral-embedding` (12-D vectors + classification) and `POST /api/ai/local-rag-analysis` (retrieval + synthesis). `POST /api/pipeline/run` now executes this local engine and returns `status: "SUCCESS"` with genuine classification and per-class area quantification.
+- **UI**: a dedicated **"Local RAG"** tab in the AI Insights panel visualizes the 12-D spectral radar, few-shot confidence breakdown, retrieved knowledge chunks, and the local synthesis report.
+
 ## 🏛️ System Architecture
 
 ```mermaid

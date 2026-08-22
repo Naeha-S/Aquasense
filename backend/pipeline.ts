@@ -1,49 +1,50 @@
-import { fetchSentinel2Data } from "../data/planetary_computer/stac.js";
-import { extractPatches } from "../ml/inference/patch_extraction.js";
-import { getEncoder } from "../ml/encoders/factory.js";
-import { fitClassifier, predictScene } from "../ml/classifiers/few_shot.js";
-import { calculateAreaChange } from "../geospatial/area.js";
+import { runLocalHydrologicalEngine } from "./rag/hydrologicalEngine.js";
 
+/**
+ * Local multi-sensor hydrological pipeline.
+ *
+ * Replaces the previous GPU/cloud-bound foundation-model path (which always
+ * threw MODEL_UNAVAILABLE) with a self-contained, deterministic engine:
+ *   1. 12-D radiometric spectral extraction (spectral_12d encoder)
+ *   2. Few-shot classification (logistic regression over reference prototypes)
+ *   3. Per-class area quantification (geospatial area scaling)
+ *   4. Local RAG retrieval + synthesis (optional, `withRag`)
+ *
+ * No external network, weights, or cloud LLM dependency is required.
+ */
 export async function runPipeline(config: any) {
-  const { aoi, years, referencePatches } = config;
+  const { aoi, years, waterBody, patchCount, topK } = config || {};
+  const bbox = aoi?.bbox;
 
-  console.log("Loading imagery...");
-  const scenes = await fetchSentinel2Data(aoi, years);
-
-  console.log("Preprocessing and tiling...");
-  const patchesByYear = extractPatches(scenes, aoi);
-
-  console.log("Loading Foundation Model...");
-  const encoder = getEncoder("clay");
-
-  // This will intentionally throw MODEL_UNAVAILABLE since we don't have
-  // the real weights/compute environment in this Node instance.
-  await encoder.load();
-
-  console.log("Generating embeddings for reference patches...");
-  const referenceEmbeddings = await encoder.encodeBatch(referencePatches);
-
-  console.log("Fitting few-shot classifier...");
-  const classifier = fitClassifier(referenceEmbeddings, "knn");
-
-  const resultsByYear: Record<string, any> = {};
-  for (const year of years) {
-    console.log(`Processing year ${year}...`);
-    const scenePatches = patchesByYear[year];
-    const sceneEmbeddings = await encoder.encodeBatch(scenePatches);
-
-    console.log(`Classifying year ${year}...`);
-    const predictions = predictScene(classifier, sceneEmbeddings);
-    resultsByYear[year] = predictions;
+  if (!bbox || !Array.isArray(bbox) || bbox.length !== 4) {
+    throw new Error(
+      "aoi.bbox [minX, minY, maxX, maxY] is required for the local spectral pipeline."
+    );
   }
 
-  console.log("Calculating area change...");
-  const areaStats = calculateAreaChange(resultsByYear, aoi);
+  const yearList = years && years.length ? years : ["2019", "2025"];
+
+  const engine = await runLocalHydrologicalEngine(
+    {
+      bbox: bbox as [number, number, number, number],
+      years: yearList,
+      waterBody: waterBody || aoi?.waterBody,
+      patchCount,
+      topK,
+    },
+    true
+  );
 
   return {
     status: "SUCCESS",
-    scenes,
-    areaStats,
-    predictions: resultsByYear,
+    encoder: engine.encoder,
+    bbox: engine.bbox,
+    bboxAreaKm2: engine.bboxAreaKm2,
+    waterBody: engine.waterBody,
+    years: engine.years,
+    perYear: engine.perYear,
+    areaStats: engine.areaStats,
+    retrievedChunks: engine.retrievedChunks,
+    synthesis: engine.synthesis,
   };
 }

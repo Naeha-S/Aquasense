@@ -1,5 +1,30 @@
-import React, { useState } from 'react';
-import { Sparkles, Brain, Search, MapPin, Zap, Image as ImageIcon, Upload, Loader2, CheckCircle2, AlertCircle, X, ExternalLink, Radio } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Brain, Search, MapPin, Zap, Image as ImageIcon, Upload, Loader2, CheckCircle2, AlertCircle, X, ExternalLink, Radio, Cpu, RefreshCw, Network } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+
+// 12-D spectral dimension order (matches ml/encoders/spectral_12d.ts).
+const SPECTRAL12_DIMS = [
+  'B02', 'B03', 'B04', 'B08', 'NDWI', 'MNDWI', 'NDTI', 'NDCI', 'VV', 'VH', 'ΔDEM', 'WQI',
+];
+const NORM_RANGES: Record<string, [number, number]> = {
+  B02: [0, 0.15], B03: [0, 0.2], B04: [0, 0.25], B08: [0, 0.3],
+  NDWI: [-1, 1], MNDWI: [-1, 1], NDTI: [-1, 1], NDCI: [-1, 1],
+  VV: [-30, 0], VH: [-30, 0], 'ΔDEM': [0, 40], WQI: [0, 100],
+};
+const localClamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+const CLASS_COLORS: Record<string, string> = {
+  water: '#2DD4BF',
+  wetland: '#10B981',
+  built_up: '#F59E0B',
+};
+const RAG_CATEGORY_COLORS: Record<string, string> = {
+  ramsar: '#2DD4BF',
+  cpcb: '#38BDF8',
+  who: '#F59E0B',
+  bio_optics: '#A78BFA',
+  climate: '#FB7185',
+  regional: '#10B981',
+};
 
 interface AiEcologicalInsightsProps {
   sceneData: {
@@ -20,7 +45,7 @@ interface AiEcologicalInsightsProps {
 }
 
 export function AiEcologicalInsights({ sceneData, config, change, pctChange, isSarPenetrating = false }: AiEcologicalInsightsProps) {
-  const [activeTab, setActiveTab] = useState<'synthesis' | 'grounding' | 'field_photo'>('synthesis');
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'grounding' | 'field_photo' | 'local_rag'>('synthesis');
   const [synthesisMode, setSynthesisMode] = useState<'deep_reasoning' | 'search_grounded' | 'maps_grounded' | 'fast_summary'>('deep_reasoning');
   const [loading, setLoading] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -33,6 +58,12 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
   const [fieldMimeType, setFieldMimeType] = useState<string>('image/jpeg');
   const [fieldAnalysis, setFieldAnalysis] = useState<string | null>(null);
   const [analyzingFieldImage, setAnalyzingFieldImage] = useState(false);
+
+  // Local RAG & 12-D Classifier engine state
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localPerYear, setLocalPerYear] = useState<any[] | null>(null);
+  const [rag, setRag] = useState<{ retrievedChunks: any[]; synthesis: string; bboxAreaKm2?: number } | null>(null);
 
   const handleGenerateSynthesis = async (mode = synthesisMode) => {
     if (!sceneData) return;
@@ -123,6 +154,56 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
     }
   };
 
+  // ---- Local RAG & 12-D Classifier engine ----
+  const runLocalEngine = async () => {
+    if (!config.bbox) return;
+    setLocalLoading(true);
+    setLocalError(null);
+    try {
+      const embRes = await fetch('/api/ai/spectral-embedding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bbox: config.bbox,
+          years: config.years,
+          waterBody: config.waterBody,
+        }),
+      });
+      const emb = await embRes.json();
+      if (!embRes.ok) throw new Error(emb.error || 'Spectral embedding failed');
+      setLocalPerYear(emb.perYear);
+
+      const ragRes = await fetch('/api/ai/local-rag-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bbox: config.bbox,
+          years: config.years,
+          waterBody: config.waterBody,
+        }),
+      });
+      const ragData = await ragRes.json();
+      if (!ragRes.ok) throw new Error(ragData.error || 'Local RAG analysis failed');
+      setRag({
+        retrievedChunks: ragData.retrievedChunks || [],
+        synthesis: ragData.synthesis || '',
+        bboxAreaKm2: ragData.bboxAreaKm2,
+      });
+    } catch (err: any) {
+      setLocalError(err.message || 'Local hydrological engine error');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  // Auto-run once when the Local RAG tab is first opened.
+  useEffect(() => {
+    if (activeTab === 'local_rag' && !localPerYear && !localLoading) {
+      runLocalEngine();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   return (
     <div className="bg-[#0E1726]/90 border border-[#1E293B] shadow-lg font-mono text-[11px] rounded-xs overflow-hidden">
       {/* Header with Subtle Amber Trace */}
@@ -174,6 +255,16 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
           }`}
         >
           <ImageIcon className="w-3 h-3" /> Drone Vision
+        </button>
+        <button
+          onClick={() => setActiveTab('local_rag')}
+          className={`flex-1 py-1.5 px-2 text-[9px] uppercase font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            activeTab === 'local_rag'
+              ? 'bg-[#16223D] text-[#2DD4BF] border-b-2 border-b-[#2DD4BF]'
+              : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#131F37]'
+          }`}
+        >
+          <Network className="w-3 h-3" /> Local RAG
         </button>
       </div>
 
@@ -301,6 +392,131 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
           </div>
         )}
 
+        {activeTab === 'local_rag' && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="text-[8px] text-[#94A3B8] uppercase tracking-wider flex items-center gap-1.5">
+                <Cpu className="w-3 h-3 text-[#2DD4BF]" /> Local Engine
+                <span className="text-[#2DD4BF] font-semibold">12D · Few-Shot · RAG</span>
+              </div>
+              <button
+                onClick={runLocalEngine}
+                disabled={localLoading}
+                className="flex items-center gap-1 text-[8px] uppercase font-semibold px-2 py-1 border border-[#2DD4BF]/40 text-[#2DD4BF] hover:bg-[#2DD4BF] hover:text-[#042F2E] rounded-xs transition-colors cursor-pointer disabled:opacity-40"
+              >
+                {localLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                {localLoading ? 'Running…' : 'Re-run'}
+              </button>
+            </div>
+
+            {localLoading && (
+              <div className="bg-[#0A0F1D] border border-[#334155] p-3 text-center space-y-1.5 rounded-xs">
+                <Loader2 className="w-5 h-5 mx-auto animate-spin text-[#2DD4BF]" />
+                <div className="text-[10px] font-semibold uppercase text-[#F1F5F9]">Running Local Hydrological Engine…</div>
+                <div className="text-[8px] text-[#64748B]">12-D spectral extraction + few-shot classification + RAG synthesis (no cloud)</div>
+              </div>
+            )}
+
+            {!localLoading && localPerYear && (() => {
+              const latest = localPerYear[localPerYear.length - 1];
+              const radarData = SPECTRAL12_DIMS.map((d, i) => {
+                const raw = latest.feature12D[i];
+                const [lo, hi] = NORM_RANGES[d];
+                return { dimension: d, raw, value: localClamp(((raw - lo) / (hi - lo)) * 100, 0, 100) };
+              });
+              const cls = latest.classification.classes;
+              return (
+                <>
+                  <div className="bg-[#0A0F1D] border border-[#1E293B] p-2 rounded-xs">
+                    <div className="text-[8px] uppercase text-[#94A3B8] mb-1 flex items-center justify-between">
+                      <span>12-D Spectral Radar — {latest.year}</span>
+                      <span className="text-[#2DD4BF]">ΔDEM / WQI / SAR σ⁰</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={210}>
+                      <RadarChart data={radarData} outerRadius="72%">
+                        <PolarGrid stroke="#334155" />
+                        <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 8, fill: '#94A3B8', fontFamily: 'monospace' }} />
+                        <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                        <Radar dataKey="value" stroke="#2DD4BF" fill="#2DD4BF" fillOpacity={0.4} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                    <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[7.5px] font-mono text-[#CBD5E1] mt-1">
+                      {radarData.map((r) => (
+                        <div key={r.dimension} className="flex justify-between">
+                          <span className="text-[#64748B]">{r.dimension}</span>
+                          <span>{r.raw.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0A0F1D] border border-[#1E293B] p-2 rounded-xs space-y-1">
+                    <div className="text-[8px] uppercase text-[#94A3B8] mb-0.5">Few-Shot Classification (Logistic Regression)</div>
+                    {['water', 'wetland', 'built_up'].map((c) => {
+                      const frac = (cls[c]?.fraction ?? 0) * 100;
+                      const km2 = cls[c]?.km2 ?? 0;
+                      const color = CLASS_COLORS[c] || '#94A3B8';
+                      return (
+                        <div key={c}>
+                          <div className="flex justify-between text-[8px] mb-0.5">
+                            <span className="capitalize" style={{ color }}>{c}</span>
+                            <span className="text-[#CBD5E1]">{frac.toFixed(1)}% · {km2.toFixed(2)} km²</span>
+                          </div>
+                          <div className="w-full bg-[#131F37] h-1.5 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${frac}%`, backgroundColor: color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="text-[7.5px] text-[#64748B] pt-0.5">
+                      Dominant: <span className="text-[#F1F5F9] capitalize">{latest.classification.dominant}</span>
+                      {typeof rag?.bboxAreaKm2 === 'number' && <> · AOI {rag.bboxAreaKm2.toFixed(2)} km²</>}
+                    </div>
+                  </div>
+
+                  {rag?.retrievedChunks && rag.retrievedChunks.length > 0 && (
+                    <div className="bg-[#0A0F1D] border border-[#1E293B] p-2 rounded-xs space-y-1">
+                      <div className="text-[8px] uppercase text-[#94A3B8] mb-0.5 flex items-center gap-1">
+                        <Network className="w-3 h-3 text-[#2DD4BF]" /> RAG Retrieved Knowledge
+                      </div>
+                      {rag.retrievedChunks.slice(0, 4).map((chunk: any, i: number) => (
+                        <div key={chunk.id || i} className="border border-[#1E293B] rounded-xs p-1.5">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span
+                              className="text-[7px] px-1.5 py-0.2 rounded-xs font-semibold"
+                              style={{ color: RAG_CATEGORY_COLORS[chunk.category] || '#94A3B8', border: `1px solid ${RAG_CATEGORY_COLORS[chunk.category] || '#334155'}55` }}
+                            >
+                              {chunk.source}
+                            </span>
+                            <span className="text-[7px] text-[#64748B]">rel {chunk.score?.toFixed?.(2) ?? chunk.score}</span>
+                          </div>
+                          <div className="text-[8px] text-[#CBD5E1] leading-tight">{chunk.text}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rag?.synthesis && (
+                    <div className="bg-[#0A0F1D] border border-[#1E293B] p-2.5 text-[9px] leading-relaxed max-h-64 overflow-y-auto whitespace-pre-line rounded-xs">
+                      <div className="font-semibold text-[9.5px] text-[#2DD4BF] border-b border-[#1E293B] pb-1 mb-1 flex items-center justify-between">
+                        <span>Local Ecological Assessment</span>
+                        <span className="text-[7.5px] bg-[#16223D] px-1.5 py-0.2 text-[#94A3B8] rounded-xs">spectral_12d · on-device</span>
+                      </div>
+                      <div className="text-[#CBD5E1] font-sans text-[10px] leading-relaxed">{rag.synthesis}</div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {!localLoading && !localPerYear && !localError && (
+              <div className="text-[9px] text-center text-[#64748B] py-2.5 bg-[#0A0F1D] border border-[#1E293B] rounded-xs">
+                {config.bbox ? 'Open the Local RAG engine to run 12-D classification.' : 'Set an AOI to unlock the local engine.'}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Synthesis & Grounding Output Box */}
         {(activeTab === 'synthesis' || activeTab === 'grounding') && (
           <div>
@@ -361,6 +577,16 @@ export function AiEcologicalInsights({ sceneData, config, change, pctChange, isS
             <div>
               <div className="font-semibold uppercase text-[9.5px]">AI Processing Notice</div>
               <div className="opacity-90">{error}</div>
+            </div>
+          </div>
+        )}
+
+        {localError && (
+          <div className="bg-[#FB7185]/10 border border-[#FB7185]/40 text-[#FB7185] p-2 text-[9px] flex items-start gap-1.5 rounded-xs">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-[#FB7185]" />
+            <div>
+              <div className="font-semibold uppercase text-[9.5px]">Local Engine Notice</div>
+              <div className="opacity-90">{localError}</div>
             </div>
           </div>
         )}
