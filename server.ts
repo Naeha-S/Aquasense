@@ -3,7 +3,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./backend/pipeline.js";
-import { generateEcologicalAnalysis, analyzeFieldImage } from "./backend/ai.js";
+import { generateEcologicalAnalysis, analyzeFieldImage, generateSpectralEmbedding, generateLocalRagAnalysis } from "./backend/ai.js";
 
 async function startServer() {
   const app = express();
@@ -64,6 +64,28 @@ async function startServer() {
     } catch (error: any) {
       console.error("Image Analysis Error:", error);
       res.status(500).json({ error: error.message || "Failed to analyze image" });
+    }
+  });
+
+  // API Route for Local 12-D Spectral Embedding (deterministic, no cloud)
+  app.post("/api/ai/spectral-embedding", async (req, res) => {
+    try {
+      const result = await generateSpectralEmbedding(req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Spectral Embedding Error:", error);
+      res.status(400).json({ error: error.message || "Failed to generate spectral embedding" });
+    }
+  });
+
+  // API Route for Local Hydrological RAG Analysis (in-memory vector retrieval + synthesis)
+  app.post("/api/ai/local-rag-analysis", async (req, res) => {
+    try {
+      const result = await generateLocalRagAnalysis(req.body);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Local RAG Analysis Error:", error);
+      res.status(400).json({ error: error.message || "Failed to run local RAG analysis" });
     }
   });
 
